@@ -136,4 +136,6 @@ struct GlobalData {
     }
 };
 
+void reset_session();
+
 extern GlobalData global_data;
