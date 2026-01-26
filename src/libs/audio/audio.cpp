@@ -648,7 +648,7 @@ wave load_wave(const char* filename) {
         return wave;
     }
 
-    wchar_t *wfilename = malloc(wlen * sizeof(wchar_t));
+    wchar_t *wfilename = new wchar_t[wlen];
     if (wfilename == NULL) {
         TRACELOG(LOG_ERROR, "Failed to allocate memory for wide filename");
         return wave;
@@ -944,7 +944,7 @@ music load_music_stream(const char* filename) {
         return music;
     }
 
-    wchar_t *wfilename = malloc(wlen * sizeof(wchar_t));
+    wchar_t *wfilename = new wchar_t[wlen];
     if (wfilename == NULL) {
         TRACELOG(LOG_WARNING, "FILEIO: Failed to allocate memory for wide filename");
         return music;
