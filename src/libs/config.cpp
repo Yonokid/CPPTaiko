@@ -161,6 +161,16 @@ static std::vector<int> parseKeyArray(const toml::array& arr) {
     return result;
 }
 
+std::vector<int> parseIntArray(const toml::array& arr) {
+    std::vector<int> result;
+    for (const auto& elem : arr) {
+        if (auto val = elem.as_integer()) {
+            result.push_back(static_cast<int>(val->get()));
+        }
+    }
+    return result;
+}
+
 static std::vector<fs::path> parsePathArray(const toml::array& arr) {
     std::vector<fs::path> result;
     for (const auto& elem : arr) {
@@ -276,16 +286,16 @@ Config get_config() {
     // Parse gamepad
     if (auto gamepad = config_file["gamepad"].as_table()) {
         if (auto left_kat = (*gamepad)["left_kat"].as_array()) {
-            config.gamepad.left_kat = parseKeyArray(*left_kat);
+            config.gamepad.left_kat = parseIntArray(*left_kat);
         }
         if (auto left_don = (*gamepad)["left_don"].as_array()) {
-            config.gamepad.left_don = parseKeyArray(*left_don);
+            config.gamepad.left_don = parseIntArray(*left_don);
         }
         if (auto right_don = (*gamepad)["right_don"].as_array()) {
-            config.gamepad.right_don = parseKeyArray(*right_don);
+            config.gamepad.right_don = parseIntArray(*right_don);
         }
         if (auto right_kat = (*gamepad)["right_kat"].as_array()) {
-            config.gamepad.right_kat = parseKeyArray(*right_kat);
+            config.gamepad.right_kat = parseIntArray(*right_kat);
         }
     }
 

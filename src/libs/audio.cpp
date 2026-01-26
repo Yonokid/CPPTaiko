@@ -16,8 +16,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sndfile.h>
-#include <speex/speex_resampler.h>
 #include <string.h>
+#include <samplerate.h>
 #include <unistd.h>
 #include <math.h>
 
@@ -27,9 +27,11 @@
 
 static int CURRENT_LOG_LEVEL = LOG_INFO;
 
+extern "C" {
 void set_log_level(int level) {
     CURRENT_LOG_LEVEL = level;
 }
+} // extern "C"
 
 #define TRACELOG(level, ...) do { \
     if (level >= CURRENT_LOG_LEVEL) { \
@@ -79,7 +81,7 @@ typedef struct music {
 // Music context data, required for music streaming
 typedef struct music_ctx {
     SNDFILE *snd_file;
-    SpeexResamplerState *resampler;
+    SRC_STATE *resampler;
     double src_ratio;
 } music_ctx;
 
@@ -115,6 +117,8 @@ typedef struct AudioData {
         struct audio_buffer *last;          // Pointer to last audio_buffer in the list
     } Buffer;
 } AudioData;
+
+extern "C" {
 
 void list_host_apis(void);
 const char* get_host_api_name(PaHostApiIndex hostApi);
@@ -183,19 +187,16 @@ void set_music_pan(music music, float pan);
 float get_music_time_length(music music);
 float get_music_time_played(music music);
 
-static int port_audio_callback(const void *inputBuffer, void *outputBuffer,
-                            unsigned long framesPerBuffer,
-                            const PaStreamCallbackTimeInfo* timeInfo,
-                            PaStreamCallbackFlags statusFlags,
-                            void *userData);
+} // extern "C"
 
-// Global audio data
+// Global audio data (uses C++ std::mutex, so must be outside extern "C")
 static AudioData AUDIO = {
     .System = {
         .masterVolume = 1.0f
     }
 };
 
+// Callback function (uses C++ features, so must have C++ linkage)
 static int port_audio_callback(const void *inputBuffer, void *outputBuffer,
                             unsigned long framesPerBuffer,
                             const PaStreamCallbackTimeInfo* timeInfo,
@@ -274,6 +275,8 @@ static int port_audio_callback(const void *inputBuffer, void *outputBuffer,
 
     return paContinue;
 }
+
+extern "C" {
 
 void list_host_apis(void)
 {
@@ -661,7 +664,8 @@ wave load_wave(const char* filename) {
     snd_file = sf_open(filename, SFM_READ, &sf_info);
 #endif
     if (snd_file == NULL) {
-        TRACELOG(LOG_ERROR, "Failed to open file '%s'\n", filename);
+        TRACELOG(LOG_ERROR, "Failed to open file '%s'", filename);
+        TRACELOG(LOG_ERROR, "libsndfile error: %s", sf_strerror(NULL));
         return wave;
     }
     wave.frameCount = (unsigned int)sf_info.frames;
@@ -699,56 +703,37 @@ void unload_wave(wave wave) {
 sound load_sound_from_wave(wave wave) {
     sound sound = { 0 };
     if (wave.data == NULL) return sound;
-
     struct wave resampled_wave = { 0 };
     bool is_resampled = false;
 
     if (wave.sampleRate != AUDIO.System.sampleRate) {
         TRACELOG(LOG_INFO, "Resampling wave from %d Hz to %f Hz", wave.sampleRate, AUDIO.System.sampleRate);
 
-        int error = 0;
-        SpeexResamplerState *resampler = speex_resampler_init(
-            wave.channels,
-            wave.sampleRate,
-            (int)AUDIO.System.sampleRate,
-            SPEEX_RESAMPLER_QUALITY_MIN,
-            &error
-        );
+        double src_ratio = AUDIO.System.sampleRate / (double)wave.sampleRate;
+        long output_frames = (long)(wave.frameCount * src_ratio) + 10;
 
-        if (error || resampler == NULL) {
-            TRACELOG(LOG_WARNING, "Failed to initialize resampler: %d", error);
-            return sound;
-        }
-
-        spx_uint32_t out_frames = (spx_uint32_t)(wave.frameCount * AUDIO.System.sampleRate / wave.sampleRate) + 10;
-
-        resampled_wave.data = calloc(out_frames * wave.channels, sizeof(float));
+        resampled_wave.data = calloc(output_frames * wave.channels, sizeof(float));
         if (resampled_wave.data == NULL) {
             TRACELOG(LOG_WARNING, "Failed to allocate memory for resampling");
-            speex_resampler_destroy(resampler);
             return sound;
         }
 
-        spx_uint32_t in_len = wave.frameCount;
-        spx_uint32_t out_len = out_frames;
+        SRC_DATA src_data;
+        src_data.data_in = (float*)wave.data;
+        src_data.data_out = (float*)resampled_wave.data;
+        src_data.input_frames = wave.frameCount;
+        src_data.output_frames = output_frames;
+        src_data.src_ratio = src_ratio;
 
-        error = speex_resampler_process_interleaved_float(
-            resampler,
-            (float*)wave.data,
-            &in_len,
-            (float*)resampled_wave.data,
-            &out_len
-        );
+        int error = src_simple(&src_data, SRC_SINC_FASTEST, wave.channels);
 
-        speex_resampler_destroy(resampler);
-
-        if (error != RESAMPLER_ERR_SUCCESS) {
-            TRACELOG(LOG_WARNING, "Resampling failed with error: %d", error);
+        if (error) {
+            TRACELOG(LOG_WARNING, "Resampling failed: %s", src_strerror(error));
             FREE(resampled_wave.data);
             return sound;
         }
 
-        resampled_wave.frameCount = out_len;
+        resampled_wave.frameCount = src_data.output_frames_gen;
         resampled_wave.sampleRate = (int)AUDIO.System.sampleRate;
         resampled_wave.channels = wave.channels;
         resampled_wave.sampleSize = wave.sampleSize;
@@ -756,13 +741,11 @@ sound load_sound_from_wave(wave wave) {
     }
 
     struct wave *wave_to_load = is_resampled ? &resampled_wave : &wave;
-
     struct audio_buffer *buffer = load_audio_buffer(AUDIO_DEVICE_CHANNELS, wave_to_load->frameCount, 0);
 
     if (buffer != NULL && buffer->data != NULL) {
         size_t samples_to_copy = wave_to_load->frameCount * wave_to_load->channels;
         size_t buffer_samples = wave_to_load->frameCount * AUDIO_DEVICE_CHANNELS;
-
         float *wave_data = (float *)wave_to_load->data;
         float *buffer_data = (float *)buffer->data;
 
@@ -967,15 +950,16 @@ music load_music_stream(const char* filename) {
         ctx->snd_file = snd_file;
         if (sf_info.samplerate != AUDIO.System.sampleRate) {
             TRACELOG(LOG_INFO, "Resampling music from %d Hz to %f Hz", sf_info.samplerate, AUDIO.System.sampleRate);
+
             int error;
-            ctx->resampler = speex_resampler_init(sf_info.channels, sf_info.samplerate, AUDIO.System.sampleRate, SPEEX_RESAMPLER_QUALITY_MIN, &error);
+            ctx->resampler = src_new(SRC_SINC_FASTEST, sf_info.channels, &error);
             if (ctx->resampler == NULL) {
-                TRACELOG(LOG_WARNING, "Failed to create resampler");
+                TRACELOG(LOG_WARNING, "Failed to create resampler: %s", src_strerror(error));
                 free(ctx);
                 sf_close(snd_file);
                 return music;
             }
-            ctx->src_ratio = AUDIO.System.sampleRate / sf_info.samplerate;
+            ctx->src_ratio = AUDIO.System.sampleRate / (double)sf_info.samplerate;
         } else {
             ctx->resampler = NULL;
             ctx->src_ratio = 1.0;
@@ -1016,7 +1000,7 @@ void unload_music_stream(music music) {
     if (music.ctxData) {
         music_ctx *ctx = (music_ctx *)music.ctxData;
         if (ctx->snd_file) sf_close(ctx->snd_file);
-        if (ctx->resampler) speex_resampler_destroy(ctx->resampler);
+        if (ctx->resampler) src_delete(ctx->resampler);
         free(ctx);
     }
     unload_audio_stream(music.stream);
@@ -1109,22 +1093,20 @@ void update_music_stream(music music) {
         sf_count_t frames_written = 0;
 
         if (needs_resampling) {
-            spx_uint32_t in_len = frames_read;
-            spx_uint32_t out_len = subBufferSizeFrames;
+            SRC_DATA src_data;
+            src_data.data_in = input_ptr;
+            src_data.data_out = buffer_data + subBufferOffset;
+            src_data.input_frames = frames_read;
+            src_data.output_frames = subBufferSizeFrames;
+            src_data.src_ratio = ctx->src_ratio;
+            src_data.end_of_input = 0;  // Set to 1 on the last chunk if needed
 
-            int error = speex_resampler_process_interleaved_float(
-                ctx->resampler,
-                input_ptr,
-                &in_len,
-                buffer_data + subBufferOffset,
-                &out_len
-            );
-
-            if (error != RESAMPLER_ERR_SUCCESS) {
-                TRACELOG(LOG_WARNING, "Resampling failed with error: %d", error);
+            int error = src_process(ctx->resampler, &src_data);
+            if (error) {
+                TRACELOG(LOG_WARNING, "Resampling failed: %s", src_strerror(error));
             }
 
-            frames_written = out_len;
+            frames_written = src_data.output_frames_gen;
         } else {
             if (needs_mono_to_stereo) {
                 for (int j = 0; j < frames_read; j++) {
@@ -1183,3 +1165,5 @@ float get_music_time_played(music music) {
     }
     return seconds_played;
 }
+
+} // extern "C"

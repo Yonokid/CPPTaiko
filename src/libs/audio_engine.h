@@ -8,7 +8,7 @@
 
 #include "config.h"
 
-#include "audio/audio.h"
+#include "audio.h"
 
 namespace fs = std::filesystem;
 

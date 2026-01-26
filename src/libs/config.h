@@ -114,6 +114,8 @@ static int getKeyCode(const std::string& key);
 
 static std::vector<int> parseKeyArray(const toml::array& arr);
 
+std::vector<int> parseIntArray(const toml::array& arr);
+
 static std::vector<fs::path> parsePathArray(const toml::array& arr);
 
 Config get_config();
