@@ -29,7 +29,8 @@ jobs:
             libgl1-mesa-dev \
             libasound2-dev \
             libpulse-dev \
-            libjack-dev
+            libjack-dev \
+            SDL2-dev
 
       - name: Configure CMake
         run: |
@@ -84,6 +85,7 @@ jobs:
             mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-libsndfile
             mingw-w64-x86_64-libsamplerate
+            mingw-w64-SDL2
             make
 
       - name: Configure CMake
