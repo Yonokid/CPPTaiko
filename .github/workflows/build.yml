@@ -30,7 +30,7 @@ jobs:
             libasound2-dev \
             libpulse-dev \
             libjack-dev \
-            SDL2-dev
+            libsdl2-dev
 
       - name: Configure CMake
         run: |
