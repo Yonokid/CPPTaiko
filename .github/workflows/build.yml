@@ -85,7 +85,7 @@ jobs:
             mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-libsndfile
             mingw-w64-x86_64-libsamplerate
-            mingw-w64-SDL2
+            mingw-w64-x86_64-SDL2
             make
 
       - name: Configure CMake
