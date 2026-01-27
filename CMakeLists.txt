@@ -220,7 +220,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src/libs/audio
     ${PORTAUDIO_INCLUDE_DIR}
     ${rapidjson_SOURCE_DIR}/include
-    ${digestpp_SOURCE_DIR}/..
     ${tomlplusplus_SOURCE_DIR}/include
 )
 
@@ -231,6 +230,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     sndfile
     samplerate
     portaudio
+    digestpp
     tomlplusplus::tomlplusplus
 )
 
