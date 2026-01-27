@@ -25,7 +25,7 @@ inline bool operator!=(const ray::Color& a, const ray::Color& b)
     return !(a == b);
 }
 
-void update_camera_for_window_size(ray::Camera2D camera, int virtual_width, int virtual_height) {
+void update_camera_for_window_size(ray::Camera2D& camera, int virtual_width, int virtual_height) {
     int screen_width = ray::GetScreenWidth();
     int screen_height = ray::GetScreenHeight();
 
@@ -122,13 +122,11 @@ std::string check_args(int argc, char* argv[]) {
         return "";
     }
 
-    // Simple argument parser for C++
     std::string song_path;
     std::optional<int> difficulty;
     bool auto_play = false;
     bool practice = false;
 
-    // Parse arguments
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
 
@@ -199,7 +197,7 @@ std::string check_args(int argc, char* argv[]) {
     global_data.session_data[(int)PlayerNum::P1].selected_difficulty = selected_difficulty;
     global_data.modifiers[(int)PlayerNum::P1].auto_play = auto_play;
 
-    return "GAME";
+    return "GAME"; //current_screen
 }
 
 int main(int argc, char* argv[]) {
@@ -302,8 +300,6 @@ int main(int argc, char* argv[]) {
      */
 
     ray::Camera2D camera = ray::Camera2D();
-    camera.target = ray::Vector2{0, 0};
-    camera.rotation = 0.0;
     update_camera_for_window_size(camera, screen_width, screen_height);
     //logger.info("Camera2D initialized")
 
@@ -344,7 +340,7 @@ int main(int argc, char* argv[]) {
             last_color = global_data.camera.border_color;
         }
 
-        //BeginMode2D(camera);
+        ray::BeginMode2D(camera);
         ray::BeginBlendMode(ray::BLEND_CUSTOM_SEPARATE);
 
         //screen = screen_mapping[current_screen]
@@ -368,7 +364,7 @@ int main(int argc, char* argv[]) {
         draw_outer_border(screen_width, screen_height, last_color);
 
         ray::EndBlendMode();
-        //EndMode2D();
+        ray::EndMode2D();
         ray::EndDrawing();
     }
 
