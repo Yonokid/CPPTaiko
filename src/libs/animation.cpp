@@ -1,5 +1,4 @@
 #include "animation.h"
-#include <iostream>
 
 using std::runtime_error;
 
