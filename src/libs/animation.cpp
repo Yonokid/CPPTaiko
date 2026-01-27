@@ -1,6 +1,13 @@
 #include "animation.h"
+#include <iostream>
 
 using std::runtime_error;
+
+BaseAnimation::BaseAnimation(double duration, double delay, bool loop, bool lock_input)
+    : duration(duration), delay(delay), delay_saved(delay),
+      start_ms(get_current_ms()), is_finished(false), is_started(false),
+      is_reversing(false), unlocked(false), loop(loop),
+      lock_input(lock_input), attribute(0) {}
 
 double BaseAnimation::easeIn(double progress, const std::string &ease_type) {
   if (ease_type == "quadratic") {
@@ -78,6 +85,19 @@ void BaseAnimation::reset() {
     pause();
 }
 
+FadeAnimation::FadeAnimation(double duration, double initial_opacity, bool loop,
+              bool lock_input, double final_opacity, double delay,
+              std::optional<std::string> ease_in,
+              std::optional<std::string> ease_out,
+              std::optional<double> reverse_delay)
+    : BaseAnimation(duration, delay, loop, lock_input),
+      initial_opacity(initial_opacity), final_opacity(final_opacity),
+      initial_opacity_saved(initial_opacity), final_opacity_saved(final_opacity),
+      ease_in(ease_in), ease_out(ease_out),
+      reverse_delay(reverse_delay), reverse_delay_saved(reverse_delay) {
+    attribute = initial_opacity;
+}
+
 void FadeAnimation::restart() {
     BaseAnimation::restart();
     reverse_delay = reverse_delay_saved;
@@ -122,6 +142,19 @@ std::unique_ptr<BaseAnimation> FadeAnimation::copy() const {
     );
 }
 
+MoveAnimation::MoveAnimation(double duration, int total_distance, bool loop,
+              bool lock_input, int start_position, double delay,
+              std::optional<double> reverse_delay,
+              std::optional<std::string> ease_in,
+              std::optional<std::string> ease_out)
+    : BaseAnimation(duration, delay, loop, lock_input),
+      total_distance(total_distance), start_position(start_position),
+      total_distance_saved(total_distance), start_position_saved(start_position),
+      ease_in(ease_in), ease_out(ease_out),
+      reverse_delay(reverse_delay), reverse_delay_saved(reverse_delay) {
+    attribute = start_position;
+}
+
 void MoveAnimation::restart() {
     BaseAnimation::restart();
     reverse_delay = reverse_delay_saved;
@@ -163,6 +196,17 @@ std::unique_ptr<BaseAnimation> MoveAnimation::copy() const {
     );
 }
 
+TextureChangeAnimation::TextureChangeAnimation(double duration, const std::vector<std::tuple<double, double, int>>& textures,
+                      bool loop, bool lock_input, double delay)
+    : BaseAnimation(duration, delay, loop, lock_input) {
+    for (const auto& [start, end, index] : textures) {
+        this->textures.push_back({start, end, index});
+    }
+    if (!this->textures.empty()) {
+        attribute = this->textures[0].index;
+    }
+}
+
 void TextureChangeAnimation::reset() {
     BaseAnimation::reset();
     if (!textures.empty()) {
@@ -199,6 +243,9 @@ std::unique_ptr<BaseAnimation> TextureChangeAnimation::copy() const {
     );
 }
 
+TextStretchAnimation::TextStretchAnimation(double duration, double delay, bool loop, bool lock_input)
+    : BaseAnimation(duration, delay, loop, lock_input) {}
+
 void TextStretchAnimation::update(double current_time_ms) {
     if (!is_started) return;
     BaseAnimation::update(current_time_ms);
@@ -220,6 +267,19 @@ void TextStretchAnimation::update(double current_time_ms) {
 
 std::unique_ptr<BaseAnimation> TextStretchAnimation::copy() const {
     return std::make_unique<TextStretchAnimation>(duration, delay_saved, loop, lock_input);
+}
+
+TextureResizeAnimation::TextureResizeAnimation(double duration, double initial_size, bool loop,
+                      bool lock_input, double final_size, double delay,
+                      std::optional<double> reverse_delay,
+                      std::optional<std::string> ease_in,
+                      std::optional<std::string> ease_out)
+    : BaseAnimation(duration, delay, loop, lock_input),
+      initial_size(initial_size), final_size(final_size),
+      initial_size_saved(initial_size), final_size_saved(final_size),
+      ease_in(ease_in), ease_out(ease_out),
+      reverse_delay(reverse_delay), reverse_delay_saved(reverse_delay) {
+    attribute = initial_size;
 }
 
 void TextureResizeAnimation::restart() {
@@ -375,7 +435,14 @@ std::unique_ptr<BaseAnimation> AnimationParser::createAnimation(const Value& ani
     double duration = anim_obj["duration"].GetDouble();
 
     auto get_double = [&](const char* key, double def) {
-        return anim_obj.HasMember(key) && anim_obj[key].IsDouble() ? anim_obj[key].GetDouble() : def;
+        if (anim_obj.HasMember(key)) {
+            if (anim_obj[key].IsDouble()) {
+                return anim_obj[key].GetDouble();
+            } else if (anim_obj[key].IsInt()) {
+                return static_cast<double>(anim_obj[key].GetInt());
+            }
+        }
+        return def;
     };
 
     auto get_int = [&](const char* key, int def) {
@@ -394,8 +461,12 @@ std::unique_ptr<BaseAnimation> AnimationParser::createAnimation(const Value& ani
     };
 
     auto get_double_opt = [&](const char* key) -> std::optional<double> {
-        if (anim_obj.HasMember(key) && anim_obj[key].IsDouble()) {
-            return anim_obj[key].GetDouble();
+        if (anim_obj.HasMember(key)) {
+            if (anim_obj[key].IsDouble()) {
+                return anim_obj[key].GetDouble();
+            } else if (anim_obj[key].IsInt()) {
+                return static_cast<double>(anim_obj[key].GetInt());
+            }
         }
         return std::nullopt;
     };

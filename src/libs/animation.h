@@ -37,11 +37,7 @@ public:
     double attribute;
     bool is_finished;
 
-    BaseAnimation(double duration, double delay = 0.0, bool loop = false, bool lock_input = false)
-        : duration(duration), delay(delay), delay_saved(delay),
-          start_ms(get_current_ms()), is_finished(false), is_started(false),
-          is_reversing(false), unlocked(false), loop(loop),
-          lock_input(lock_input), attribute(0) {}
+    BaseAnimation(double duration, double delay = 0.0, bool loop = false, bool lock_input = false);
 
     virtual ~BaseAnimation() = default;
 
@@ -79,14 +75,7 @@ public:
                   bool lock_input = false, double final_opacity = 0.0, double delay = 0.0,
                   std::optional<std::string> ease_in = std::nullopt,
                   std::optional<std::string> ease_out = std::nullopt,
-                  std::optional<double> reverse_delay = std::nullopt)
-        : BaseAnimation(duration, delay, loop, lock_input),
-          initial_opacity(initial_opacity), final_opacity(final_opacity),
-          initial_opacity_saved(initial_opacity), final_opacity_saved(final_opacity),
-          ease_in(ease_in), ease_out(ease_out),
-          reverse_delay(reverse_delay), reverse_delay_saved(reverse_delay) {
-        attribute = initial_opacity;
-    }
+                  std::optional<double> reverse_delay = std::nullopt);
 
     void restart() override;
 
@@ -111,14 +100,7 @@ public:
                   bool lock_input = false, int start_position = 0, double delay = 0.0,
                   std::optional<double> reverse_delay = std::nullopt,
                   std::optional<std::string> ease_in = std::nullopt,
-                  std::optional<std::string> ease_out = std::nullopt)
-        : BaseAnimation(duration, delay, loop, lock_input),
-          total_distance(total_distance), start_position(start_position),
-          total_distance_saved(total_distance), start_position_saved(start_position),
-          ease_in(ease_in), ease_out(ease_out),
-          reverse_delay(reverse_delay), reverse_delay_saved(reverse_delay) {
-        attribute = start_position;
-    }
+                  std::optional<std::string> ease_out = std::nullopt);
 
     void restart() override;
 
@@ -138,15 +120,7 @@ private:
 
 public:
     TextureChangeAnimation(double duration, const std::vector<std::tuple<double, double, int>>& textures,
-                          bool loop = false, bool lock_input = false, double delay = 0.0)
-        : BaseAnimation(duration, delay, loop, lock_input) {
-        for (const auto& [start, end, index] : textures) {
-            this->textures.push_back({start, end, index});
-        }
-        if (!this->textures.empty()) {
-            attribute = this->textures[0].index;
-        }
-    }
+                          bool loop = false, bool lock_input = false, double delay = 0.0);
 
     void reset() override;
 
@@ -157,8 +131,7 @@ public:
 
 class TextStretchAnimation : public BaseAnimation {
 public:
-    TextStretchAnimation(double duration, double delay = 0.0, bool loop = false, bool lock_input = false)
-        : BaseAnimation(duration, delay, loop, lock_input) {}
+    TextStretchAnimation(double duration, double delay = 0.0, bool loop = false, bool lock_input = false);
 
     void update(double current_time_ms) override;
 
@@ -181,14 +154,7 @@ public:
                           bool lock_input = false, double final_size = 0.0, double delay = 0.0,
                           std::optional<double> reverse_delay = std::nullopt,
                           std::optional<std::string> ease_in = std::nullopt,
-                          std::optional<std::string> ease_out = std::nullopt)
-        : BaseAnimation(duration, delay, loop, lock_input),
-          initial_size(initial_size), final_size(final_size),
-          initial_size_saved(initial_size), final_size_saved(final_size),
-          ease_in(ease_in), ease_out(ease_out),
-          reverse_delay(reverse_delay), reverse_delay_saved(reverse_delay) {
-        attribute = initial_size;
-    }
+                          std::optional<std::string> ease_out = std::nullopt);
 
     void restart() override;
 
