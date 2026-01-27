@@ -82,59 +82,92 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(tomlplusplus)
 
 # libsndfile
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_check_modules(SNDFILE QUIET sndfile)
-endif()
+if(WIN32)
+    message(STATUS "Using local libsndfile on Windows")
+    set(SNDFILE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/audio")
+    set(SNDFILE_LIBRARY "${CMAKE_SOURCE_DIR}/src/libs/audio/libsndfile.a")
 
-if(SNDFILE_FOUND)
-    message(STATUS "Using system libsndfile")
-    add_library(sndfile INTERFACE)
-    target_include_directories(sndfile INTERFACE ${SNDFILE_INCLUDE_DIRS})
-    target_link_libraries(sndfile INTERFACE ${SNDFILE_LIBRARIES})
-    target_link_directories(sndfile INTERFACE ${SNDFILE_LIBRARY_DIRS})
-else()
-    message(STATUS "System libsndfile not found, fetching from source")
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-    set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
-    set(ENABLE_MPEG ON CACHE BOOL "" FORCE)
-    set(ENABLE_OPUS ON CACHE BOOL "" FORCE)
-    set(ENABLE_FLAC ON CACHE BOOL "" FORCE)
-    set(ENABLE_VORBIS ON CACHE BOOL "" FORCE)
-    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-    FetchContent_Declare(
-        libsndfile
-        GIT_REPOSITORY https://github.com/libsndfile/libsndfile.git
-        GIT_TAG 1.2.2
-        GIT_SHALLOW TRUE
+    if(NOT EXISTS ${SNDFILE_LIBRARY})
+        message(FATAL_ERROR "libsndfile not found: ${SNDFILE_LIBRARY}")
+    endif()
+
+    add_library(sndfile STATIC IMPORTED)
+    set_target_properties(sndfile PROPERTIES
+        IMPORTED_LOCATION ${SNDFILE_LIBRARY}
+        INTERFACE_INCLUDE_DIRECTORIES ${SNDFILE_INCLUDE_DIR}
     )
-    FetchContent_MakeAvailable(libsndfile)
+else()
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(SNDFILE QUIET sndfile)
+    endif()
+
+    if(SNDFILE_FOUND)
+        message(STATUS "Using system libsndfile")
+        add_library(sndfile INTERFACE)
+        target_include_directories(sndfile INTERFACE ${SNDFILE_INCLUDE_DIRS})
+        target_link_libraries(sndfile INTERFACE ${SNDFILE_LIBRARIES})
+        target_link_directories(sndfile INTERFACE ${SNDFILE_LIBRARY_DIRS})
+    else()
+        message(STATUS "System libsndfile not found, fetching from source")
+        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
+        set(ENABLE_MPEG ON CACHE BOOL "" FORCE)
+        set(ENABLE_OPUS ON CACHE BOOL "" FORCE)
+        set(ENABLE_FLAC ON CACHE BOOL "" FORCE)
+        set(ENABLE_VORBIS ON CACHE BOOL "" FORCE)
+        set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+        FetchContent_Declare(
+            libsndfile
+            GIT_REPOSITORY https://github.com/libsndfile/libsndfile.git
+            GIT_TAG 1.2.2
+            GIT_SHALLOW TRUE
+        )
+        FetchContent_MakeAvailable(libsndfile)
+    endif()
 endif()
 
 # libsamplerate
-if(PkgConfig_FOUND)
-    pkg_check_modules(SAMPLERATE QUIET samplerate)
-endif()
+if(WIN32)
+    message(STATUS "Using local libsamplerate on Windows")
+    set(SAMPLERATE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/libs/audio")
+    set(SAMPLERATE_LIBRARY "${CMAKE_SOURCE_DIR}/src/libs/audio/libsamplerate.a")
 
-if(SAMPLERATE_FOUND)
-    message(STATUS "Using system libsamplerate")
-    add_library(samplerate INTERFACE)
-    target_include_directories(samplerate INTERFACE ${SAMPLERATE_INCLUDE_DIRS})
-    target_link_libraries(samplerate INTERFACE ${SAMPLERATE_LIBRARIES})
-    target_link_directories(samplerate INTERFACE ${SAMPLERATE_LIBRARY_DIRS})
-else()
-    message(STATUS "System libsamplerate not found, fetching from source")
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-    set(LIBSAMPLERATE_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(LIBSAMPLERATE_INSTALL OFF CACHE BOOL "" FORCE)
-    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-    FetchContent_Declare(
-        libsamplerate
-        GIT_REPOSITORY https://github.com/libsndfile/libsamplerate.git
-        GIT_TAG 0.2.2
-        GIT_SHALLOW TRUE
+    if(NOT EXISTS ${SAMPLERATE_LIBRARY})
+        message(FATAL_ERROR "libsamplerate not found: ${SAMPLERATE_LIBRARY}")
+    endif()
+
+    add_library(samplerate STATIC IMPORTED)
+    set_target_properties(samplerate PROPERTIES
+        IMPORTED_LOCATION ${SAMPLERATE_LIBRARY}
+        INTERFACE_INCLUDE_DIRECTORIES ${SAMPLERATE_INCLUDE_DIR}
     )
-    FetchContent_MakeAvailable(libsamplerate)
+else()
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(SAMPLERATE QUIET samplerate)
+    endif()
+
+    if(SAMPLERATE_FOUND)
+        message(STATUS "Using system libsamplerate")
+        add_library(samplerate INTERFACE)
+        target_include_directories(samplerate INTERFACE ${SAMPLERATE_INCLUDE_DIRS})
+        target_link_libraries(samplerate INTERFACE ${SAMPLERATE_LIBRARIES})
+        target_link_directories(samplerate INTERFACE ${SAMPLERATE_LIBRARY_DIRS})
+    else()
+        message(STATUS "System libsamplerate not found, fetching from source")
+        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        set(LIBSAMPLERATE_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(LIBSAMPLERATE_INSTALL OFF CACHE BOOL "" FORCE)
+        set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+        FetchContent_Declare(
+            libsamplerate
+            GIT_REPOSITORY https://github.com/libsndfile/libsamplerate.git
+            GIT_TAG 0.2.2
+            GIT_SHALLOW TRUE
+        )
+        FetchContent_MakeAvailable(libsamplerate)
+    endif()
 endif()
 
 # digestpp
@@ -144,7 +177,6 @@ FetchContent_Declare(
     GIT_TAG master
     GIT_SHALLOW TRUE
 )
-set(DIGESTPP_INCLUDE_DIRS ${digestpp_SOURCE_DIR})
 FetchContent_MakeAvailable(digestpp)
 
 ### PortAudio (local prebuilt library)
@@ -190,7 +222,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${rapidjson_SOURCE_DIR}/include
     ${digestpp_SOURCE_DIR}
     ${tomlplusplus_SOURCE_DIR}/include
-    ${samplerate_SOURCE_DIR}/include
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -210,6 +241,16 @@ if(WIN32)
         opengl32
         gdi32
         winmm
+        setupapi
+        ole32
+        vorbisenc
+        vorbis
+        FLAC
+        opus
+        ogg
+        mp3lame
+        mpg123
+        shlwapi
     )
     # Static linking on Windows
     target_link_options(${PROJECT_NAME} PRIVATE

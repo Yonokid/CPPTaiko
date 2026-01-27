@@ -7,7 +7,7 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
-#include <digestpp/algorithm/md5.hpp>
+#include <algorithm/md5.hpp>
 #include <vector>
 #include <variant>
 #include <map>

@@ -5,7 +5,7 @@
 // the audio stream structure is necessary after converting the music
 // stream to portaudio
 
-#include "portaudio.h"
+#include "audio/portaudio.h"
 #include <mutex>
 #ifdef _WIN32
 #include "pa_asio.h"
@@ -15,9 +15,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sndfile.h>
+#include "sndfile.h"
 #include <string.h>
-#include <samplerate.h>
+#include "samplerate.h"
 #include <unistd.h>
 #include <math.h>
 

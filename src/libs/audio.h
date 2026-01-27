@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <portaudio.h>
+#include "audio/portaudio.h"
 
 #ifdef __cplusplus
 extern "C" {
