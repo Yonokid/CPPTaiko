@@ -8,6 +8,8 @@
 #include "judgment.h"
 #include "lane_hit_effect.h"
 #include "drum_hit_effect.h"
+#include "gauge_hit_effect.h"
+#include "note_arc.h"
 
 namespace JudgePos {
     inline float X = 414 * tex.screen_scale;
@@ -103,6 +105,8 @@ private:
     std::vector<Judgment> draw_judge_list;
     std::optional<LaneHitEffect> lane_hit_effect;
     std::vector<DrumHitEffect> draw_drum_hit_list;
+    std::vector<GaugeHitEffect> gauge_hit_effect;
+    std::vector<NoteArc> draw_arc_list;
 
     void get_load_time(Note& note);
 

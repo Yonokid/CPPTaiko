@@ -28,7 +28,6 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
     don_hitsound = "hitsound_don_" + std::to_string((int)player_num) + "p";
     kat_hitsound = "hitsound_kat_" + std::to_string((int)player_num) + "p";
 
-    //self.draw_arc_list: list[NoteArc] = []
     //self.drumroll_counter: Optional[DrumrollCounter] = None
     //self.balloon_anim: Optional[BalloonAnimation] = None
     //self.kusudama_anim: Optional[KusudamaAnimation] = None
@@ -58,8 +57,7 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
         stars = 10
     else:
         stars = parser.metadata.course_data[self.difficulty].level
-    self.gauge = Gauge(self.player_num, self.difficulty, stars, self.total_notes, self.is_2p)
-    self.gauge_hit_effect: list[GaugeHitEffect] = []*/
+    self.gauge = Gauge(self.player_num, self.difficulty, stars, self.total_notes, self.is_2p)*/
 }
 
 void Player::update(double ms_from_start, double current_ms) {
@@ -105,17 +103,27 @@ void Player::update(double ms_from_start, double current_ms) {
             self.delay_end = None
      */
 
-    /*# More efficient arc management
-    finished_arcs = []
-    for i, anim in enumerate(self.draw_arc_list):
-        anim.update(current_time)
-        if anim.is_finished and len(self.gauge_hit_effect) < 7:
-            self.gauge_hit_effect.append(GaugeHitEffect(anim.note_type, anim.is_big, self.is_2p))
-            finished_arcs.append(i)
-    for i in reversed(finished_arcs):
-        self.draw_arc_list.pop(i)*/
+    for (auto it = draw_arc_list.begin(); it != draw_arc_list.end(); ) {
+        it->update(current_ms);
+        if (it->is_finished()) {
+            // Save arc data before erasing
+            int note_type = it->note_type;
+            bool is_big = it->is_big;
+            it = draw_arc_list.erase(it);
+            gauge_hit_effect.push_back(GaugeHitEffect(note_type, is_big, is_2p));
+        } else {
+            ++it;
+        }
+    }
 
-    //self.animation_manager(self.gauge_hit_effect, current_time)
+    for (auto it = gauge_hit_effect.begin(); it != gauge_hit_effect.end(); ) {
+        it->update(current_ms);
+        if (it->is_finished()) {
+            it = gauge_hit_effect.erase(it);
+        } else {
+            ++it;
+        }
+    }
     //self.animation_manager(self.base_score_list, current_time)
     //self.score_counter.update(current_time, self.score)
     //self.autoplay_manager(ms_from_start, current_time, background)
@@ -540,7 +548,7 @@ void Player::note_correct(Note note, double current_time) {
     if (note.type != (int)NoteType::KUSUDAMA) {
         bool is_big = note.type == (int)NoteType::DON_L or note.type == (int)NoteType::KAT_L or note.type == (int)NoteType::BALLOON_HEAD;
         bool is_balloon = note.type == (int)NoteType::BALLOON_HEAD;
-        //self.draw_arc_list.append(NoteArc(note.type, current_time, PlayerNum(self.is_2p + 1), is_big, is_balloon, start_x=self.judge_x, start_y=self.judge_y))
+        draw_arc_list.push_back(NoteArc(note.type, current_time, PlayerNum(is_2p + 1), is_big, is_balloon, judge_x, judge_y));
     }
     auto it = std::find(current_notes_draw.begin(), current_notes_draw.end(), note);
     if (it != current_notes_draw.end()) {
@@ -772,10 +780,12 @@ void Player::draw_overlays(ray::Shader mask_shader) {
     for (DrumHitEffect anim : draw_drum_hit_list) {
         anim.draw();
     }
-    //for anim in self.draw_arc_list:
-        //anim.draw(mask_shader)
-    //for anim in self.gauge_hit_effect:
-        //anim.draw()
+    for (NoteArc anim : draw_arc_list) {
+        anim.draw(mask_shader);
+    }
+    for (GaugeHitEffect anim : gauge_hit_effect) {
+        anim.draw();
+    }
 
     //Group 6: UI overlays
     //self.combo_display.draw()

@@ -6,7 +6,7 @@ void GameScreen::on_screen_start() {
     current_ms = 0;
     end_ms = 0;
     start_ms = 0;
-    start_delay = 0.0f;
+    start_delay = 1000.0f;
     JudgePos::X = 414 * tex.screen_scale;
     JudgePos::Y = 256 * tex.screen_scale;
     song_started = false;
