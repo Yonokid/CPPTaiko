@@ -24,13 +24,12 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
     , autoplay_hit_side(Side::LEFT)
     , last_subdivision(-1)
     , combo_display(combo, 0, is_2p)
+    , drumroll_counter(std::nullopt)
 {
     reset_chart();
     don_hitsound = "hitsound_don_" + std::to_string((int)player_num) + "p";
     kat_hitsound = "hitsound_kat_" + std::to_string((int)player_num) + "p";
 
-    //self.drumroll_counter: Optional[DrumrollCounter] = None
-    //self.balloon_anim: Optional[BalloonAnimation] = None
     //self.kusudama_anim: Optional[KusudamaAnimation] = None
     //self.base_score_list: list[ScoreCounterAnimation] = []
     //self.score_counter = ScoreCounter(self.score, self.is_2p)
@@ -64,7 +63,8 @@ void Player::update(double ms_from_start, double current_ms) {
     note_manager(ms_from_start);//, background);
     combo_display.update(current_ms, combo);
     //self.combo_announce.update(current_time)
-    //self.drumroll_counter_manager(current_time)
+    drumroll_counter_manager(current_ms);
+    balloon_counter_manager(current_ms);
     for (auto it = draw_judge_list.begin(); it != draw_judge_list.end(); ) {
         it->update(current_ms);
         if (it->is_finished()) {
@@ -73,7 +73,6 @@ void Player::update(double ms_from_start, double current_ms) {
             ++it;
         }
     }
-    //self.balloon_manager(current_time)
     //if self.gogo_time is not None:
         //self.gogo_time.update(current_time)
     if (lane_hit_effect != std::nullopt) {
@@ -106,7 +105,6 @@ void Player::update(double ms_from_start, double current_ms) {
     for (auto it = draw_arc_list.begin(); it != draw_arc_list.end(); ) {
         it->update(current_ms);
         if (it->is_finished()) {
-            // Save arc data before erasing
             int note_type = it->note_type;
             bool is_big = it->is_big;
             it = draw_arc_list.erase(it);
@@ -670,6 +668,42 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
     }
 }
 
+void Player::drumroll_counter_manager(double current_ms) {
+    if (is_drumroll && curr_drumroll_count > 0 && drumroll_counter == std::nullopt) {
+        drumroll_counter = DrumrollCounter(is_2p);
+    }
+
+    if (drumroll_counter != std::nullopt) {
+        if (drumroll_counter->is_finished() && !is_drumroll) {
+            drumroll_counter.reset();
+        } else {
+            drumroll_counter->update(current_ms, curr_drumroll_count);
+        }
+    }
+}
+
+void Player::balloon_counter_manager(double current_ms) {
+    if (balloon_counter != std::nullopt) {
+        //chara.set_animation("balloon_popping");
+        balloon_counter->update(current_ms, curr_balloon_count, !is_balloon);
+        if (balloon_counter->is_finished()) {
+            if (score_method == ScoreMethod::GEN3) {
+                score += 5000;
+                //base_score_list.append(ScoreCounterAnimation(self.player_num, 5000, self.is_2p))
+            }
+            balloon_counter.reset();
+            //chara.set_animation("balloon_pop");
+        }
+    /*
+    if self.kusudama_anim is not None:
+        self.kusudama_anim.update(current_time, not self.is_balloon)
+        self.kusudama_anim.update_count(self.curr_balloon_count)
+        if self.kusudama_anim.is_finished:
+            self.kusudama_anim = None
+     */
+    }
+}
+
 void Player::spawn_hit_effects(DrumType drum_type, Side side) {
     lane_hit_effect = LaneHitEffect(drum_type, Judgments::BAD, is_2p); //judgment parameter workaround
     if (draw_drum_hit_list.size() < 4) {
@@ -709,10 +743,9 @@ void Player::draw_notes(double current_ms) {
     for (auto it = current_notes_draw.rbegin(); it != current_notes_draw.rend(); ++it) {
         auto& note = *it;
 
-        /*if (balloon_anim != nullptr && std::holds_alternative<Balloon>(note) &&
-            std::get<Balloon>(note) == std::get<Balloon>(current_notes_draw[0])) {
+        if (balloon_counter != std::nullopt && note.type == (int)NoteType::BALLOON_HEAD) {
             continue;
-        }*/
+        }
 
         if (note.type == (int)NoteType::TAIL) {
             continue;
@@ -814,10 +847,12 @@ void Player::draw_overlays(ray::Shader mask_shader) {
     //self.chara.draw(y=(self.is_2p*tex.skin_config["game_2p_offset"].y))
 
     // Group 8: Special animations and counters
-    //if self.drumroll_counter is not None:
-        //self.drumroll_counter.draw()
-    //if self.balloon_anim is not None:
-        //self.balloon_anim.draw()
+    if (drumroll_counter != std::nullopt) {
+        drumroll_counter->draw();
+    }
+    if (balloon_counter != std::nullopt) {
+        balloon_counter->draw();
+    }
     //if self.kusudama_anim is not None:
         //self.kusudama_anim.draw()
     //self.score_counter.draw()

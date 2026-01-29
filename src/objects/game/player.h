@@ -5,12 +5,14 @@
 #include "../../libs/texture.h"
 #include "../../libs/audio_engine.h"
 #include "../../libs/utils.h"
+#include "balloon_counter.h"
 #include "judgment.h"
 #include "lane_hit_effect.h"
 #include "drum_hit_effect.h"
 #include "gauge_hit_effect.h"
 #include "note_arc.h"
 #include "combo.h"
+#include "drumroll_counter.h"
 
 namespace JudgePos {
     inline float X = 414 * tex.screen_scale;
@@ -109,6 +111,8 @@ private:
     std::vector<GaugeHitEffect> gauge_hit_effect;
     std::vector<NoteArc> draw_arc_list;
     Combo combo_display;
+    std::optional<DrumrollCounter> drumroll_counter;
+    std::optional<BalloonCounter> balloon_counter;
 
     void get_load_time(Note& note);
 
@@ -130,9 +134,13 @@ private:
 
     void note_manager(double current_ms);
 
-    void note_correct(Note note, double current_time);
+    void note_correct(Note note, double current_ms);
 
-    void check_note(double ms_from_start, DrumType drum_type, double current_time);
+    void check_note(double ms_from_start, DrumType drum_type, double current_ms);
+
+    void drumroll_counter_manager(double current_ms);
+
+    void balloon_counter_manager(double current_ms);
 
     void spawn_hit_effects(DrumType drum_type, Side side);
 
