@@ -299,11 +299,30 @@ elseif(UNIX)
         endif()
 endif()
 
-target_compile_options(${PROJECT_NAME} PRIVATE
-    -O0  # No optimization for debug
-    -g   # Debug symbols
-    -fmax-errors=0
-)
+# AddressSanitizer for Debug builds
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        -O0  # No optimization for debug
+        -g   # Debug symbols
+        -fmax-errors=0
+        -fsanitize=address
+        -fsanitize=leak
+        -fsanitize=undefined
+        -fno-omit-frame-pointer
+    )
+    target_link_options(${PROJECT_NAME} PRIVATE
+        -fsanitize=address
+        -fsanitize=leak
+        -fsanitize=undefined
+    )
+    message(STATUS "AddressSanitizer enabled for Debug build")
+else()
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        -O0  # No optimization for debug
+        -g   # Debug symbols
+        -fmax-errors=0
+    )
+endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
@@ -324,5 +343,8 @@ message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "PortAudio Library: ${PORTAUDIO_LIBRARY}")
 message(STATUS "SDL2: ${SDL2_VERSION}")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Sanitizers: AddressSanitizer, LeakSanitizer, UndefinedBehaviorSanitizer")
+endif()
 message(STATUS "===============================================================")
 message(STATUS "")

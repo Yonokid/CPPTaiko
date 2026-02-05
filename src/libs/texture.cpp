@@ -95,8 +95,6 @@ void TextureWrapper::unload_textures() {
                     std::string tex_name = subset + "/" + name + "[" + std::to_string(i) + "]";
 
                     if (ids.find(id) != ids.end()) {
-                        ray::TraceLog(ray::LOG_WARNING, "Duplicate texture ID %u: %s and %s",
-                               id, ids[id].c_str(), tex_name.c_str());
                     } else {
                         ids[id] = tex_name;
                     }
@@ -108,8 +106,6 @@ void TextureWrapper::unload_textures() {
                     std::string tex_name = subset + "/" + name;
 
                     if (ids.find(id) != ids.end()) {
-                        ray::TraceLog(ray::LOG_WARNING, "Duplicate texture ID %u: %s and %s",
-                               id, ids[id].c_str(), tex_name.c_str());
                     } else {
                         ids[id] = tex_name;
                     }

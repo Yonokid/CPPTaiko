@@ -1,0 +1,69 @@
+# This file suppresses known leaks from third-party libraries
+
+# SDL2 - Known to have some internal leaks that are cleaned up by the OS
+leak:libSDL2
+leak:SDL_Init
+leak:SDL_CreateWindow
+leak:SDL_GL_CreateContext
+
+# Raylib - Graphics library
+leak:libraylib
+leak:InitWindow
+leak:LoadTexture
+leak:LoadSound
+
+# PortAudio - Audio library
+leak:libportaudio
+leak:Pa_Initialize
+leak:Pa_OpenStream
+
+# PulseAudio - Linux audio system
+leak:libpulse
+leak:pa_context_new
+leak:pa_stream_new
+
+# ALSA - Linux sound architecture
+leak:libasound
+leak:snd_pcm_open
+leak:snd_config_update
+
+# JACK Audio
+leak:libjack
+leak:jack_client_open
+
+# X11 - Linux windowing system
+leak:libX11
+leak:XOpenDisplay
+leak:XCreateWindow
+
+# OpenGL drivers (often have internal leaks)
+leak:libGL
+leak:libGLX
+leak:libglvnd
+leak:libEGL
+
+# Mesa graphics drivers
+leak:libmesa
+leak:libgallium
+
+# GLib (used by many Linux libraries)
+leak:libglib
+leak:g_malloc
+leak:g_type_register
+
+# libsndfile
+leak:libsndfile
+leak:sf_open
+
+# libsamplerate
+leak:libsamplerate
+leak:src_new
+
+# Standard library false positives
+leak:std::__throw_bad_alloc
+
+# Static initialization leaks (one-time allocations)
+leak:__static_initialization_and_destruction
+
+# C++ standard library
+leak:libstdc++
