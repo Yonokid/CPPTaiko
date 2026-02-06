@@ -1216,20 +1216,22 @@ std::vector<Note> modifier_moji(const NoteList& notes) {
         }
     }
 
-    auto streams = find_streams(notes.play_notes, Interval::SIXTEENTH);
-    for (const auto& [start, length] : streams) {
-        for (int i = start; i < start + length - 1; ++i) {
-            if (modded_notes[i].type == 1) {
-                modded_notes[i].moji = 1;
-            } else if (modded_notes[i].type == 2) {
-                modded_notes[i].moji = 4;
+    std::vector<Interval> intervals = {Interval::SIXTEENTH, Interval::TWENTYFOURTH, Interval::THIRTYSECOND};
+
+    for (const auto& interval : intervals) {
+        auto streams = find_streams(notes.play_notes, interval);
+        for (const auto& [start, length] : streams) {
+            for (int i = start; i < start + length - 1; ++i) {
+                if (modded_notes[i].type == 1) {
+                    modded_notes[i].moji = 1;
+                } else if (modded_notes[i].type == 2) {
+                    modded_notes[i].moji = 4;
+                }
+            }
+            if (length == 3) {
+                if (modded_notes[start + 1].type == 1) modded_notes[start + 1].moji = 2;
             }
         }
-
-        if (length == 3) {
-            if (modded_notes[start + 1].type == 1) modded_notes[start + 1].moji = 2;
-        }
-
     }
 
     return modded_notes;

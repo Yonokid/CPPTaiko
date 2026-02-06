@@ -740,8 +740,19 @@ void Player::draw_note_manager(double current_ms) {
 
     if (current_notes_draw.empty()) return;
 
-    if (current_notes_draw[0].color.has_value()) {
-        current_notes_draw[0].color.value() = std::min(255, current_notes_draw[0].color.value() + 1);
+    if (is_drumroll && !other_notes.empty()) {
+        int active_drumroll_index = other_notes[0].index;
+        auto drumroll_it = std::find_if(current_notes_draw.begin(), current_notes_draw.end(),
+                                         [active_drumroll_index](const Note& n) {
+                                             return n.index == active_drumroll_index &&
+                                                    (n.type == (int)NoteType::ROLL_HEAD ||
+                                                     n.type == (int)NoteType::ROLL_HEAD_L);
+                                         });
+        if (drumroll_it != current_notes_draw.end() && drumroll_it->color.has_value() &&
+            last_drumroll_color_time + 16.67f < current_ms) {
+            last_drumroll_color_time = current_ms;
+            drumroll_it->color = std::min(255, drumroll_it->color.value() + 1);
+        }
     }
 
     Note note = current_notes_draw[0];
@@ -818,8 +829,17 @@ void Player::check_drumroll(double current_ms, DrumType drum_type) { //backgroun
         base_score_list.push_back(ScoreCounterAnimation(player_num, 100, is_2p));
     }
     if (current_notes_draw.empty()) return;
-    if (current_notes_draw[0].color.has_value()) {
-        current_notes_draw[0].color.value() = std::max(0, 255 - (curr_drumroll_count * 10));
+    if (!other_notes.empty()) {
+        int active_drumroll_index = other_notes[0].index;
+        auto drumroll_it = std::find_if(current_notes_draw.begin(), current_notes_draw.end(),
+                                         [active_drumroll_index](const Note& n) {
+                                             return n.index == active_drumroll_index &&
+                                                    (n.type == (int)NoteType::ROLL_HEAD ||
+                                                     n.type == (int)NoteType::ROLL_HEAD_L);
+                                         });
+        if (drumroll_it != current_notes_draw.end() && drumroll_it->color.has_value()) {
+            drumroll_it->color.value() = std::max(0, 255 - (curr_drumroll_count * 10));
+        }
     }
 }
 

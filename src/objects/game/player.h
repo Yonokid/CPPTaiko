@@ -97,6 +97,7 @@ private:
 
     bool is_drumroll;
     int curr_drumroll_count;
+    double last_drumroll_color_time;
     bool is_balloon;
     int curr_balloon_count;
     int balloon_index;
