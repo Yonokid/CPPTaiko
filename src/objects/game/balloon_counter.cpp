@@ -19,7 +19,7 @@ void BalloonCounter::update_count(int count) {
 
 void BalloonCounter::update(double current_ms, int count) {
     stretch->update(current_ms);
-    fade->update(current_ms);
+    if (is_popped) fade->update(current_ms);
 
     if (count != 0) update_count(count);
 }

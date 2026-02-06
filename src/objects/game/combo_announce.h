@@ -10,7 +10,7 @@ private:
     PlayerNum player_num;
     bool is_2p;
     int combo;
-    float wait;
+    double wait;
     FadeAnimation* fade;
     bool audio_played;
 

@@ -31,7 +31,7 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
     don_hitsound = "hitsound_don_" + std::to_string((int)player_num) + "p";
     kat_hitsound = "hitsound_kat_" + std::to_string((int)player_num) + "p";
 
-    if (parser != std::nullopt && !parser->metadata.course_data.empty()) {
+    if (parser.has_value() && !parser->metadata.course_data.empty()) {
         if (parser->metadata.course_data[difficulty].is_branching) {
         branch_indicator = BranchIndicator(is_2p);
         }
@@ -167,13 +167,13 @@ void Player::evaluate_branch(double current_ms) {
         if (branch_condition == "p") {
             branch_condition_count = std::max(std::min((branch_condition_count/total_notes)*100, 100), 0);
         }
-        if (branch_indicator != std::nullopt) {
+        if (branch_indicator.has_value()) {
             //logger.info(f"Branch set to {self.branch_indicator.difficulty} based on conditions {self.branch_condition_count}, {e_req, m_req}")
         }
         if (branch_condition_count >= e_req && branch_condition_count < m_req && e_req >= 0) {
             merge_branch_section(branch_e.front(), current_ms);
             branch_e.erase(branch_e.begin());
-            if (branch_indicator != std::nullopt and branch_indicator->difficulty != BranchDifficulty::EXPERT) {
+            if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::EXPERT) {
                 if (branch_indicator->difficulty == BranchDifficulty::MASTER) {
                     branch_indicator->level_down(BranchDifficulty::EXPERT);
                 } else {
@@ -189,7 +189,7 @@ void Player::evaluate_branch(double current_ms) {
         } else if (branch_condition_count >= m_req) {
             merge_branch_section(branch_m.front(), current_ms);
             branch_m.erase(branch_m.begin());
-            if (branch_indicator != std::nullopt and branch_indicator->difficulty != BranchDifficulty::MASTER) {
+            if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::MASTER) {
                 branch_indicator->level_up(BranchDifficulty::MASTER);
             }
             if (!branch_n.empty()) {
@@ -201,7 +201,7 @@ void Player::evaluate_branch(double current_ms) {
         } else {
             merge_branch_section(branch_n.front(), current_ms);
             branch_n.erase(branch_n.begin());
-            if (branch_indicator != std::nullopt and branch_indicator->difficulty != BranchDifficulty::NORMAL) {
+            if (branch_indicator.has_value() and branch_indicator->difficulty != BranchDifficulty::NORMAL) {
                 branch_indicator->level_down(BranchDifficulty::NORMAL);
             }
             if (!branch_m.empty()) {
@@ -218,7 +218,7 @@ void Player::evaluate_branch(double current_ms) {
 void Player::update(double ms_from_start, double current_ms) {
     note_manager(ms_from_start);//, background);
     combo_display.update(current_ms, combo);
-    if (combo_announce != std::nullopt) {
+    if (combo_announce.has_value()) {
         combo_announce->update(current_ms);
     }
     drumroll_counter_manager(current_ms);
@@ -231,10 +231,10 @@ void Player::update(double ms_from_start, double current_ms) {
             ++it;
         }
     }
-    if (gogo_time != std::nullopt) {
+    if (gogo_time.has_value()) {
         gogo_time->update(current_ms);
     }
-    if (lane_hit_effect != std::nullopt) {
+    if (lane_hit_effect.has_value()) {
         lane_hit_effect->update(current_ms);
         if (lane_hit_effect->is_finished()) {
             lane_hit_effect.reset();
@@ -249,7 +249,7 @@ void Player::update(double ms_from_start, double current_ms) {
         }
     }
     handle_timeline(ms_from_start);
-    if (delay_start != std::nullopt && delay_end != std::nullopt) {
+    if (delay_start.has_value() && delay_end.has_value()) {
         if (ms_from_start >= delay_end.value()) {
             double delay = delay_end.value() - delay_start.value();
             for (auto& note : don_notes) note.load_ms += delay;
@@ -294,13 +294,13 @@ void Player::update(double ms_from_start, double current_ms) {
     autoplay_manager(ms_from_start, current_ms);//, background);
     handle_input(ms_from_start, current_ms);//, background);
     //self.nameplate.update(current_ms)
-    if (gauge != std::nullopt) {
+    if (gauge.has_value()) {
         gauge->update(current_ms);
     }
-    if (judge_counter != std::nullopt) {
+    if (judge_counter.has_value()) {
         judge_counter->update(good_count, ok_count, bad_count, total_drumroll);
     }
-    if (branch_indicator != std::nullopt) {
+    if (branch_indicator.has_value()) {
         branch_indicator->update(current_ms);
     }
     //if self.ending_anim is not None:
@@ -320,18 +320,18 @@ void Player::update(double ms_from_start, double current_ms) {
 void Player::draw(double ms_from_start, ray::Shader& mask_shader) {//dan_transition = None
     tex.draw_texture("lane", "lane_background", {.index = is_2p});
     if (player_num == PlayerNum::AI) tex.draw_texture("lane", "ai_lane_background");
-    if (branch_indicator != std::nullopt) {
+    if (branch_indicator.has_value()) {
         branch_indicator->draw();
     }
-    if (gauge != std::nullopt) {
+    if (gauge.has_value()) {
         gauge->draw();
     }
-    if (lane_hit_effect != std::nullopt) {
+    if (lane_hit_effect.has_value()) {
         lane_hit_effect->draw();
     }
     tex.draw_texture("lane", "lane_hit_circle", {.x =  judge_x, .y =  judge_y, .index = is_2p});
 
-    if (gogo_time != std::nullopt) {
+    if (gogo_time.has_value()) {
         gogo_time->draw(judge_x, judge_y);
     }
     for (Judgment anim : draw_judge_list) {
@@ -340,7 +340,7 @@ void Player::draw(double ms_from_start, ray::Shader& mask_shader) {//dan_transit
 
     draw_bars(ms_from_start);
     draw_notes(ms_from_start);
-    /*if (dan_transition != std::nullopt) {
+    /*if (dan_transition.has_value()) {
         dan_transition->draw();
     }*/
 
@@ -533,7 +533,7 @@ void Player::reset_chart() {
 }
 
 float Player::get_position_x(Note note, double current_ms) {
-    if (delay_start != std::nullopt) {
+    if (delay_start.has_value()) {
         current_ms = delay_start.value();
     }
     float speedx = note.bpm / 240000 * note.scroll_x * (tex.screen_width - JudgePos::X);
@@ -541,7 +541,7 @@ float Player::get_position_x(Note note, double current_ms) {
 }
 
 float Player::get_position_y(Note note, double current_ms) {
-    if (delay_start != std::nullopt) {
+    if (delay_start.has_value()) {
         current_ms = delay_start.value();
     }
     float speedy = note.bpm / 240000 * note.scroll_y * ((tex.screen_width - JudgePos::X)/tex.screen_width) * tex.screen_width;
@@ -643,7 +643,7 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
             else:
                 background.add_chibi(True, 1)*/
         bad_count++;
-        if (gauge != std::nullopt) {
+        if (gauge.has_value()) {
             gauge->add_bad();
         }
         don_notes.pop_front();
@@ -660,7 +660,7 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
             else:
                 background.add_chibi(True, 1)*/
         bad_count++;
-        if (gauge != std::nullopt) {
+        if (gauge.has_value()) {
             gauge->add_bad();
         }
         kat_notes.pop_front();
@@ -829,7 +829,7 @@ void Player::check_balloon(double current_ms, DrumType drum_type, Note balloon) 
         check_kusudama(current_ms, balloon);
         return;
     }
-    if (balloon_counter == std::nullopt) {
+    if (!balloon_counter.has_value()) {
         balloon_counter = BalloonCounter(balloon.count.value(), player_num, is_2p);
     }
     curr_balloon_count++;
@@ -848,7 +848,7 @@ void Player::check_balloon(double current_ms, DrumType drum_type, Note balloon) 
 }
 
 void Player::check_kusudama(double current_ms, Note balloon) {
-    if (kusudama_counter == std::nullopt) {
+    if (!kusudama_counter.has_value()) {
         kusudama_counter = KusudamaCounter(balloon.count.value());
     }
     curr_balloon_count++;
@@ -925,7 +925,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                 base_score_list.push_back(ScoreCounterAnimation(player_num, base_score, is_2p));
             }
             note_correct(curr_note, current_ms);
-            if (gauge != std::nullopt) {
+            if (gauge.has_value()) {
                 gauge->add_good();
             }
             if (is_branch && branch_condition == "p") {
@@ -946,7 +946,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                 base_score_list.push_back(ScoreCounterAnimation(player_num, 10 * std::floor(base_score / 2 / 10), is_2p));
             }
             note_correct(curr_note, current_ms);
-            if (gauge != std::nullopt) {
+            if (gauge.has_value()) {
                 gauge->add_ok();
             }
             if (is_branch && branch_condition == "p") {
@@ -974,7 +974,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                 std::remove(current_notes_draw.begin(), current_notes_draw.end(), note),
                 current_notes_draw.end()
             );
-            if (gauge != std::nullopt) {
+            if (gauge.has_value()) {
                 gauge->add_bad();
             }
             /*if background is not None:
@@ -991,7 +991,7 @@ void Player::drumroll_counter_manager(double current_ms) {
         drumroll_counter = DrumrollCounter(is_2p);
     }
 
-    if (drumroll_counter != std::nullopt) {
+    if (drumroll_counter.has_value()) {
         if (drumroll_counter->is_finished() && !is_drumroll) {
             drumroll_counter.reset();
         } else {
@@ -1001,7 +1001,10 @@ void Player::drumroll_counter_manager(double current_ms) {
 }
 
 void Player::balloon_counter_manager(double current_ms) {
-    if (balloon_counter != std::nullopt) {
+    if (!is_balloon && balloon_counter.has_value()) {
+        balloon_counter.reset();
+    }
+    if (balloon_counter.has_value()) {
         //chara.set_animation("balloon_popping");
         balloon_counter->update(current_ms, curr_balloon_count);
         if (balloon_counter->is_finished()) {
@@ -1012,7 +1015,7 @@ void Player::balloon_counter_manager(double current_ms) {
             balloon_counter.reset();
             //chara.set_animation("balloon_pop");
         }
-    if (kusudama_counter != std::nullopt) {
+    if (kusudama_counter.has_value()) {
         kusudama_counter->update(current_ms, !is_balloon);
         kusudama_counter->update_count(curr_balloon_count);
         if (kusudama_counter->is_finished()) {
@@ -1154,7 +1157,7 @@ void Player::draw_notes(double current_ms) {
     for (auto it = current_notes_draw.rbegin(); it != current_notes_draw.rend(); ++it) {
         auto& note = *it;
 
-        if (balloon_counter != std::nullopt && note.type == (int)NoteType::BALLOON_HEAD) {
+        if (balloon_counter.has_value() && note.type == (int)NoteType::BALLOON_HEAD) {
             continue;
         }
 
@@ -1251,7 +1254,7 @@ void Player::draw_overlays(ray::Shader mask_shader) {
     }
 
     combo_display.draw();
-    if (combo_announce != std::nullopt) {
+    if (combo_announce.has_value()) {
         combo_announce->draw();
     }
     if (is_2p) {
@@ -1265,7 +1268,7 @@ void Player::draw_overlays(ray::Shader mask_shader) {
     } else {
         tex.draw_texture("lane", "lane_difficulty", {.frame=difficulty, .index=is_2p});
     }
-    if (judge_counter != std::nullopt) {
+    if (judge_counter.has_value()) {
         judge_counter->draw();
     }
 
@@ -1281,13 +1284,13 @@ void Player::draw_overlays(ray::Shader mask_shader) {
     draw_modifiers();
     //self.chara.draw(y=(self.is_2p*tex.skin_config["game_2p_offset"].y))
 
-    if (drumroll_counter != std::nullopt) {
+    if (drumroll_counter.has_value()) {
         drumroll_counter->draw();
     }
-    if (balloon_counter != std::nullopt) {
+    if (balloon_counter.has_value()) {
         balloon_counter->draw();
     }
-    if (kusudama_counter != std::nullopt) {
+    if (kusudama_counter.has_value()) {
         kusudama_counter->draw();
     }
     score_counter.draw();
