@@ -1216,7 +1216,7 @@ std::vector<Note> modifier_moji(const NoteList& notes) {
         }
     }
 
-    std::vector<Interval> intervals = {Interval::SIXTEENTH, Interval::TWENTYFOURTH, Interval::THIRTYSECOND};
+    std::vector<Interval> intervals = {Interval::EIGHTH, Interval::TWELFTH, Interval::SIXTEENTH, Interval::TWENTYFOURTH, Interval::THIRTYSECOND};
 
     for (const auto& interval : intervals) {
         auto streams = find_streams(notes.play_notes, interval);
