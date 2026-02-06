@@ -1229,7 +1229,11 @@ std::vector<Note> modifier_moji(const NoteList& notes) {
                 }
             }
             if (length == 3) {
-                if (modded_notes[start + 1].type == 1) modded_notes[start + 1].moji = 2;
+                if (modded_notes[start + 0].type == 1 &&
+                    modded_notes[start + 1].type == 1 &&
+                    modded_notes[start + 2].type == 1) {
+                    modded_notes[start + 1].moji = 2;
+                }
             }
         }
     }

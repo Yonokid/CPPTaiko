@@ -1153,6 +1153,7 @@ void Player::draw_balloon(double current_ms, Note head, int current_eighth) {
     float end_position = get_position_x(tail, current_ms);
     float pause_position = JudgePos::X + judge_x;
     float y = tex.skin_config["notes"].y + get_position_y(head, current_ms) + judge_y;
+    float moji_y = tex.skin_config["moji"].y + get_position_y(head, current_ms) + judge_y;
     start_position += judge_x;
     end_position += judge_x;
     float position;
@@ -1165,8 +1166,9 @@ void Player::draw_balloon(double current_ms, Note head, int current_eighth) {
     }
     if (head.display) {
         tex.draw_texture("notes", std::to_string(head.type), {.frame=current_eighth % 2, .x=position-offset - tex.textures["notes"]["1"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)});
+        tex.draw_texture("notes", "10", {.frame=current_eighth % 2, .x=position-offset+tex.textures["notes"]["10"]->width - tex.textures["notes"]["1"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)});
     }
-    tex.draw_texture("notes", "10", {.frame=current_eighth % 2, .x=position-offset+tex.textures["notes"]["10"]->width - tex.textures["notes"]["1"]->width/2.0f, .y=y+(is_2p*tex.skin_config["2p_offset"].y)});
+    tex.draw_texture("notes", "moji", {.frame=head.moji, .x=position - (tex.textures["notes"]["moji"]->width/2.0f), .y=moji_y + (is_2p*tex.skin_config["2p_offset"].y)});
 }
 
 void Player::draw_notes(double current_ms) {
@@ -1177,7 +1179,7 @@ void Player::draw_notes(double current_ms) {
     for (auto it = current_notes_draw.rbegin(); it != current_notes_draw.rend(); ++it) {
         auto& note = *it;
 
-        if (balloon_counter.has_value() && note.type == (int)NoteType::BALLOON_HEAD) {
+        if (balloon_counter.has_value() && note.type == (int)NoteType::BALLOON_HEAD && !other_notes.empty() && note.index == other_notes[0].index) {
             continue;
         }
 
@@ -1218,7 +1220,6 @@ void Player::draw_notes(double current_ms) {
         } else if (note.count.has_value()) {
             if (!note.is_kusudama.value()) {
                 draw_balloon(current_ms, note, current_eighth);
-                tex.draw_texture("notes", "moji", {.frame=note.moji, .x=x_position - (tex.textures["notes"]["moji"]->width/2.0f), .y=tex.skin_config["moji"].y + y_position+(is_2p*tex.skin_config["2p_offset"].y)});
             }
         } else {
             if (note.display) {
