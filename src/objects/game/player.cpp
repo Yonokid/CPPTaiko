@@ -450,17 +450,6 @@ void Player::reset_chart() {
         last_note = &note;
     }
 
-    for (Note& note : this->draw_bar_list) {
-        get_load_time(note);
-
-        if (note.type == (int)NoteType::TAIL) {
-            note.load_ms = last_note->load_ms;
-            last_note->unload_ms = note.unload_ms;
-        }
-
-        last_note = &note;
-    }
-
     std::sort(this->draw_note_list.begin(), this->draw_note_list.end(),
         [](const Note& a, const Note& b) {
             return a.load_ms < b.load_ms;
@@ -727,7 +716,9 @@ void Player::draw_note_manager(double current_ms) {
             current_notes_draw.insert(pos, current_note);
 
             auto tail_it = std::find_if(draw_note_list.begin(), draw_note_list.end(),
-                                        [](const auto& note) { return note.type == (int)NoteType::TAIL; });
+                                        [&current_note](const auto& note) {
+                                            return note.type == (int)NoteType::TAIL && note.index > current_note.index;
+                                        });
 
             if (tail_it != draw_note_list.end()) {
                 auto tail_note = *tail_it;
@@ -805,8 +796,7 @@ void Player::note_correct(Note note, double current_ms) {
 
     if (note.type != (int)NoteType::KUSUDAMA) {
         bool is_big = note.type == (int)NoteType::DON_L || note.type == (int)NoteType::KAT_L || note.type == (int)NoteType::BALLOON_HEAD;
-        bool is_balloon = note.type == (int)NoteType::BALLOON_HEAD;
-        draw_arc_list.push_back(NoteArc(note.type, current_ms, PlayerNum(is_2p + 1), is_big, is_balloon, judge_x, judge_y));
+        draw_arc_list.push_back(NoteArc(note.type, current_ms, PlayerNum(is_2p + 1), is_big, note.type == (int)NoteType::BALLOON_HEAD, judge_x, judge_y));
     }
     auto it = std::find(current_notes_draw.begin(), current_notes_draw.end(), note);
     if (it != current_notes_draw.end()) {
@@ -835,7 +825,7 @@ void Player::check_drumroll(double current_ms, DrumType drum_type) { //backgroun
 
 void Player::check_balloon(double current_ms, DrumType drum_type, Note balloon) {
     if (drum_type != DrumType::DON) return;
-    if (balloon.is_kusudama) {
+    if (balloon.is_kusudama.value()) {
         check_kusudama(current_ms, balloon);
         return;
     }
@@ -848,10 +838,9 @@ void Player::check_balloon(double current_ms, DrumType drum_type, Note balloon) 
     if (base_score_list.size() < 5) {
         base_score_list.push_back(ScoreCounterAnimation(player_num, 100, is_2p));
     }
-    if (curr_balloon_count == balloon.count) {
+    if (curr_balloon_count == balloon.count.value()) {
         is_balloon = false;
-        balloon.popped = true;
-        balloon_counter->update(current_ms, curr_balloon_count, balloon.popped.value());
+        balloon_counter->update(current_ms, curr_balloon_count);
         audio->play_sound("balloon_pop", "hitsound");
         note_correct(balloon, current_ms);
         curr_balloon_count = 0;
@@ -904,21 +893,22 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
     }
 
     Note curr_note;
-    if (drum_type == DrumType::DON) {
+    if (is_drumroll && !other_notes.empty()) {
+        check_drumroll(current_ms, drum_type);
+        return;
+    } else if (is_balloon && !other_notes.empty()) {
+        curr_note = other_notes.front();
+        check_balloon(current_ms, drum_type, curr_note);
+        return;
+    } else if (drum_type == DrumType::DON) {
         if (don_notes.empty()) return;
         curr_note = don_notes.front();
     } else if (drum_type == DrumType::KAT) {
         if (kat_notes.empty()) return;
         curr_note = kat_notes.front();
-    } else {
-        curr_note = other_notes.front();
     }
-    if (is_drumroll && !other_notes.empty()) {
-        check_drumroll(current_ms, drum_type);
-    } else if (is_balloon && !other_notes.empty()) {
-        if (!curr_note.count.has_value()) return;
-        check_balloon(current_ms, drum_type, curr_note);
-    } else {
+
+    {
         curr_drumroll_count = 0;
 
         if (ms_from_start > (curr_note.hit_ms + bad_window_ms)) return;
@@ -1013,7 +1003,7 @@ void Player::drumroll_counter_manager(double current_ms) {
 void Player::balloon_counter_manager(double current_ms) {
     if (balloon_counter != std::nullopt) {
         //chara.set_animation("balloon_popping");
-        balloon_counter->update(current_ms, curr_balloon_count, !is_balloon);
+        balloon_counter->update(current_ms, curr_balloon_count);
         if (balloon_counter->is_finished()) {
             if (score_method == ScoreMethod::GEN3) {
                 score += 5000;
@@ -1203,9 +1193,9 @@ void Player::draw_notes(double current_ms) {
         if (note.color.has_value()) {
             draw_drumroll(current_ms, note, current_eighth);
         } else if (note.count.has_value()) {
-            if (!note.is_kusudama) {
+            if (!note.is_kusudama.value()) {
                 draw_balloon(current_ms, note, current_eighth);
-                tex.draw_texture("notes", "moji", {.frame=note.moji, .x=x_position, .y=tex.skin_config["moji"].y + y_position+(is_2p*tex.skin_config["2p_offset"].y)});
+                tex.draw_texture("notes", "moji", {.frame=note.moji, .x=x_position - (tex.textures["notes"]["moji"]->width/2.0f), .y=tex.skin_config["moji"].y + y_position+(is_2p*tex.skin_config["2p_offset"].y)});
             }
         } else {
             if (note.display) {

@@ -17,7 +17,7 @@ public:
 
     void update_count(int count);
 
-    void update(double current_ms, int count, bool popped);
+    void update(double current_ms, int count);
 
     void draw();
 

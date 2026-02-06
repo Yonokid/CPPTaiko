@@ -401,7 +401,7 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
         sounds[name] = snd;
         lock.unlock();
 
-        spdlog::info("Loaded sound: {} ({} frames, {} Hz, {} channels)",
+        spdlog::debug("Loaded sound: {} ({} frames, {} Hz, {} channels)",
                      name, snd.frame_count, snd.sample_rate, snd.channels);
 
         return name;
@@ -617,7 +617,7 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
         music_streams[name] = mus;
         lock.unlock();
 
-        spdlog::info("Loaded music stream: {} ({} frames, {} Hz, {} channels)",
+        spdlog::debug("Loaded music stream: {} ({} frames, {} Hz, {} channels)",
                      name, file_info.frames, file_info.samplerate, file_info.channels);
 
         return name;
@@ -751,7 +751,7 @@ void AudioEngine::unload_music_stream(const std::string& name) {
         }
 
         music_streams.erase(it);
-        spdlog::info("Unloaded music stream: {}", name);
+        spdlog::debug("Unloaded music stream: {}", name);
     } else {
         spdlog::warn("Music stream {} not found", name);
     }

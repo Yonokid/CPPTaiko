@@ -1189,8 +1189,8 @@ Note TJAParser::add_note(const std::string& item, ParserState& state) {
     note.scroll_y = state.scroll_y_modifier;
 
     if (state.sudden_appear > 0 || state.sudden_moving > 0) {
-        note.sudden_appear_ms.value() = state.sudden_appear;
-        note.sudden_moving_ms.value() = state.sudden_moving;
+        note.sudden_appear_ms = state.sudden_appear;
+        note.sudden_moving_ms = state.sudden_moving;
     }
 
     if (note.type == 5 || note.type == 6) {

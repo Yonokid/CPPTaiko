@@ -1,9 +1,10 @@
 #include "balloon_counter.h"
+#include <spdlog/spdlog.h>
 
 BalloonCounter::BalloonCounter(int count, PlayerNum player_num, bool is_2p)
- : balloon_count(count), is_2p(is_2p), player_num(player_num) {
-     fade = (FadeAnimation*)tex.get_animation(8);
-     stretch = (TextStretchAnimation*)tex.get_animation(9);
+ : balloon_count(count), balloon_total(count), is_popped(false), is_2p(is_2p), player_num(player_num) {
+     fade = (FadeAnimation*)tex.get_animation(7);
+     stretch = (TextStretchAnimation*)tex.get_animation(6);
 }
 
 void BalloonCounter::update_count(int count) {
@@ -11,15 +12,15 @@ void BalloonCounter::update_count(int count) {
         balloon_count = count;
         fade->start();
         stretch->start();
+        if (balloon_count == balloon_total) {
+            is_popped = true;
+        }
     }
 }
 
-void BalloonCounter::update(double current_ms, int count, bool popped) {
+void BalloonCounter::update(double current_ms, int count) {
     stretch->update(current_ms);
-    if (popped) {
-        fade->update(current_ms);
-        is_popped = true;
-    }
+    fade->update(current_ms);
 
     if (count != 0) update_count(count);
 }

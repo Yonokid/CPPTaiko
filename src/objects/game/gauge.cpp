@@ -64,7 +64,7 @@ Gauge::Gauge(PlayerNum player_num, int difficulty, int level, int total_notes, b
         }
     };
 
-    gauge_update_anim = (TextureChangeAnimation*)tex.get_animation(10);
+    gauge_update_anim = (FadeAnimation*)tex.get_animation(10);
     rainbow_animation = (TextureChangeAnimation*)tex.get_animation(64);
 }
 
