@@ -4,8 +4,7 @@
 Gauge::Gauge(PlayerNum player_num, int difficulty, int level, int total_notes, bool is_2p)
     : player_num(player_num), difficulty(std::min((int)Difficulty::ONI, difficulty)),
       level(std::min(10, level)), total_notes(total_notes), is_2p(is_2p),
-      gauge_length(0), previous_length(0), is_clear(false), is_rainbow(false),
-      rainbow_fade_in(nullptr) {
+      gauge_length(0), previous_length(0), is_clear(false), is_rainbow(false) {
 
     clear_start = {52, 60, 69, 69};
     gauge_max = 87.0f;
@@ -100,16 +99,16 @@ void Gauge::update(double current_ms) {
     is_clear = gauge_length > clear_start[std::min(difficulty, (int)Difficulty::HARD)] - 1;
     is_rainbow = gauge_length == gauge_max;
 
-    if (gauge_length == gauge_max && rainbow_fade_in == nullptr) {
+    if (gauge_length == gauge_max && !rainbow_fade_in.has_value()) {
         rainbow_fade_in = (FadeAnimation*)tex.get_animation(63);
-        rainbow_fade_in->start();
+        rainbow_fade_in.value()->start();
     }
 
     gauge_update_anim->update(current_ms);
     tamashii_fire_change->update(current_ms);
 
-    if (rainbow_fade_in != nullptr) {
-        rainbow_fade_in->update(current_ms);
+    if (rainbow_fade_in.has_value()) {
+        rainbow_fade_in.value()->update(current_ms);
     }
 
     rainbow_animation->update(current_ms);
@@ -161,24 +160,24 @@ void Gauge::draw() {
     }
 
     // Rainbow effect for full gauge
-    if (gauge_length_int == gauge_max && rainbow_fade_in != nullptr) {
+    if (gauge_length_int == gauge_max && rainbow_fade_in.has_value()) {
         if (0 < rainbow_animation->attribute && rainbow_animation->attribute < 8) {
             tex.draw_texture("gauge", "rainbow" + string_diff, {
                 .frame = (int)rainbow_animation->attribute - 1,
                 .mirror = mirror,
-                .fade = rainbow_fade_in->attribute,
+                .fade = rainbow_fade_in.value()->attribute,
                 .index = (int)is_2p
             });
         }
         tex.draw_texture("gauge", "rainbow" + string_diff, {
             .frame = (int)rainbow_animation->attribute,
             .mirror = mirror,
-            .fade = rainbow_fade_in->attribute,
+            .fade = rainbow_fade_in.value()->attribute,
             .index = (int)is_2p
         });
     }
 
-    if (gauge_update_anim != nullptr && gauge_length_int <= gauge_max && gauge_length_int > previous_length) {
+    if (gauge_length_int <= gauge_max && gauge_length_int > previous_length) {
         if (gauge_length_int == clear_start[difficulty]) {
             tex.draw_texture("gauge", "bar_clear_transition_fade", {
                 .mirror = mirror,

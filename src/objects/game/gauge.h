@@ -32,7 +32,7 @@ private:
     std::vector<std::vector<GaugeTable>> table;
 
     FadeAnimation* gauge_update_anim;
-    FadeAnimation* rainbow_fade_in;
+    std::optional<FadeAnimation*> rainbow_fade_in;
     TextureChangeAnimation* rainbow_animation;
 
 public:

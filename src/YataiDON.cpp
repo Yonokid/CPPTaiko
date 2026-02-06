@@ -194,9 +194,9 @@ int main(int argc, char* argv[]) {
         spdlog::warn("Skin directory not found, skipping global texture initialization");
     }
     global_tex.load_screen_textures("global");
-    global_tex.load_folder("chara", "chara_0");
-    global_tex.load_folder("chara", "chara_1");
-    global_tex.load_folder("chara", "chara_4");
+    //global_tex.load_folder("chara", "chara_0");
+    //global_tex.load_folder("chara", "chara_1");
+    //global_tex.load_folder("chara", "chara_4");
     if (global_data.config->video.borderless) {
         ray::ToggleBorderlessWindowed();
         spdlog::info("Borderless window enabled");

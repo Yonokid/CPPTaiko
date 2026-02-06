@@ -6,7 +6,9 @@ BaseAnimation::BaseAnimation(double duration, double delay, bool loop, bool lock
     : duration(duration), delay(delay), delay_saved(delay),
       start_ms(get_current_ms()), is_finished(false), is_started(false),
       is_reversing(false), unlocked(false), loop(loop),
-      lock_input(lock_input), attribute(0) {}
+      lock_input(lock_input), attribute(0) {
+          if (loop) is_started = true;
+      }
 
 double BaseAnimation::easeIn(double progress, const std::string &ease_type) {
   if (ease_type == "quadratic") {
