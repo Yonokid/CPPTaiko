@@ -1,4 +1,5 @@
 #include "tja.h"
+#include <spdlog/spdlog.h>
 
 double get_ms_per_measure(double bpm_val, double time_sig) {
     if (bpm_val == 0) return 0;
@@ -11,42 +12,12 @@ int calculate_base_score(const NoteList& notes) {
     int balloon_count = 0;
     double drumroll_msec = 0.0f;
 
-    for (size_t i = 0; i < notes.play_notes.size(); i++) {
-        Note note = notes.play_notes[i];
+    for (size_t i = 0; i < notes.notes.size(); i++) {
+        Note note = notes.notes[i];
 
-        Note next_note = *((i < notes.play_notes.size() - 1)
-            ? &notes.play_notes[i + 1]
-            : &notes.play_notes[notes.play_notes.size() - 1]);
-
-        if (note.color.has_value()) { //is drumroll
-            drumroll_msec += (next_note.hit_ms - note.hit_ms);
-        } else if (note.count.has_value()) { //is balloon
-            balloon_count += std::min(100, note.count.value());
-        } else {
-            if (note.type == 8) {
-                continue;
-            }
-            total_notes += 1;
-        }
-    }
-
-    if (total_notes == 0) return 1000000;
-
-    double calculation = (1000000.0f - (balloon_count * 100.0f) - (16.920079999994086f * drumroll_msec / 1000.0f * 100.0f)) / total_notes / 10.0f;
-    return static_cast<int>(std::ceil(calculation)) * 10;
-}
-
-int calculate_base_score(const NoteList& notes, const std::vector<NoteList>& branch_m) {
-    int total_notes = 0;
-    int balloon_count = 0;
-    double drumroll_msec = 0.0f;
-
-    for (size_t i = 0; i < notes.play_notes.size(); i++) {
-        Note note = notes.play_notes[i];
-
-        Note next_note = *((i < notes.play_notes.size() - 1)
-            ? &notes.play_notes[i + 1]
-            : &notes.play_notes[notes.play_notes.size() - 1]);
+        Note next_note = *((i < notes.notes.size() - 1)
+            ? &notes.notes[i + 1]
+            : &notes.notes[notes.notes.size() - 1]);
 
         if (note.color.has_value()) { //is drumroll
             drumroll_msec += (next_note.hit_ms - note.hit_ms);
@@ -56,28 +27,7 @@ int calculate_base_score(const NoteList& notes, const std::vector<NoteList>& bra
             if (note.type == 8) {
                 continue;
             }
-            total_notes += 1;
-        }
-    }
-
-    for (const auto& branch_section : branch_m) {
-        for (size_t i = 0; i < branch_section.play_notes.size(); i++) {
-            Note note = branch_section.play_notes[i];
-
-            Note next_note = *((i < branch_section.play_notes.size() - 1)
-                ? &branch_section.play_notes[i + 1]
-                : &branch_section.play_notes[branch_section.play_notes.size() - 1]);
-
-            if (note.color.has_value()) { //is drumroll
-                drumroll_msec += (next_note.hit_ms - note.hit_ms);
-            } else if (note.count.has_value()) { //is balloon
-                balloon_count += std::min(100, note.count.value());
-            } else {
-                if (note.type == 8) {
-                    continue;
-                }
-                total_notes += 1;
-            }
+            if (1 <= note.type && note.type <= 4) total_notes += 1;
         }
     }
 
@@ -86,7 +36,6 @@ int calculate_base_score(const NoteList& notes, const std::vector<NoteList>& bra
     double calculation = (1000000.0f - (balloon_count * 100.0f) - (16.920079999994086f * drumroll_msec / 1000.0f * 100.0f)) / total_notes / 10.0f;
     return static_cast<int>(std::ceil(calculation)) * 10;
 }
-
 
 std::string test_encodings(const std::filesystem::path& file_path) {
     std::ifstream file(file_path, std::ios::binary);
@@ -378,18 +327,8 @@ TJAParser::notes_to_position(int diff) {
     state.bpm = metadata.bpm;
     state.bpmchange_last_bpm = metadata.bpm;
     state.balloons = metadata.course_data[diff].balloon;
-    state.curr_note_list = &master_notes.play_notes;
-    state.curr_draw_list = &master_notes.draw_notes;
-    state.curr_bar_list = &master_notes.bars;
+    state.curr_note_list = &master_notes.notes;
     state.curr_timeline = &master_notes.timeline;
-
-    // Initialize with starting BPM
-    TimelineObject init_bpm;
-    init_bpm.hit_ms = current_ms;
-    init_bpm.bpm = state.bpm;
-    state.curr_timeline->push_back(init_bpm);
-    state.bpmchange_last_bpm = state.bpm;
-    state.delay_last_note_ms = current_ms;
 
     // Process each bar
     for (const auto& bar : notes) {
@@ -434,9 +373,10 @@ TJAParser::notes_to_position(int diff) {
 
             // Add barline
             double ms_per_measure = get_ms_per_measure(state.bpm, state.time_signature);
-            Note barline_note = add_bar(state);
-            state.curr_bar_list->push_back(barline_note);
+            Note barline = add_bar(state);
+            state.curr_note_list->push_back(barline);
             state.barline_added = true;
+            state.index++;
 
             // Calculate time increment per note
             double increment;
@@ -477,11 +417,9 @@ TJAParser::notes_to_position(int diff) {
 
                 // Create and add note
                 Note note = add_note(std::string(1, item), state);
-                //std::cout << note.type << "," << note.hit_ms << "," << master_notes.play_notes.size() << "\n";
                 current_ms += increment;
                 state.curr_note_list->push_back(note);
-                state.curr_draw_list->push_back(note);
-                state.index += 1;
+                state.index++;
 
                 // Update previous note
                 Note* note_ptr = &note;
@@ -719,37 +657,6 @@ float TJAParser::apply_easing(float t, EasingPoint easing_point, EasingFunction 
         return result;
 }
 
-void TJAParser::set_branch_params(std::vector<Note>& bar_list, std::string branch_params, std::optional<Note> section_bar) {
-    if (!bar_list.empty() && bar_list.size() > 1) {
-        int section_index = -2;
-        if (section_bar) {
-            double section_hit_ms = section_bar->hit_ms;
-            if (section_hit_ms < this->current_ms) {
-                auto it = std::find(bar_list.begin(), bar_list.end(), *section_bar);
-                if (it != bar_list.end()) {
-                    section_index = std::distance(bar_list.begin(), it);
-                }
-            }
-        }
-        // Handle negative index
-        if (section_index < 0) {
-            section_index = bar_list.size() + section_index;
-        }
-        bar_list[section_index].branch_params = branch_params;
-    }
-    else if (!bar_list.empty()) {
-        bar_list.back().branch_params = branch_params;
-    }
-    else {
-        Note bar_line;
-        bar_line.hit_ms = this->current_ms;
-        bar_line.type = 0;
-        bar_line.display = false;
-        bar_line.branch_params = branch_params;
-        bar_list.push_back(bar_line);
-    }
-}
-
 #define REGISTER_HANDLER(name) \
     registry["#" #name] = [this](const std::string& v, ParserState& s) { \
         handle_##name(v, s); \
@@ -899,37 +806,32 @@ void TJAParser::handle_BRANCHSTART(const std::string& value, ParserState& state)
 
     std::string branch_params = value;
 
-    state.pending_branch_params = branch_params;
+    TimelineObject branch_obj;
+    if (state.section_bar.has_value()) {
+        branch_obj.hit_ms = state.section_bar.value().hit_ms;
+        state.section_bar.reset();
+    } else {
+        branch_obj.hit_ms = this->current_ms;
+    }
+    branch_obj.load_ms = branch_obj.hit_ms - (240000 * state.time_signature / state.bpm);
+    branch_obj.branch_params = branch_params;
+    state.curr_timeline->push_back(branch_obj);
 
-    if (!this->master_notes.bars.empty()) {
-        set_branch_params(this->master_notes.bars, branch_params, state.section_bar);
+    if (!this->branch_m.empty()) {
+        this->branch_m.back().timeline.push_back(branch_obj);
+    }
+    if (!this->branch_e.empty()) {
+        this->branch_e.back().timeline.push_back(branch_obj);
+    }
+    if (!this->branch_n.empty()) {
+        this->branch_n.back().timeline.push_back(branch_obj);
     }
 }
 
 void TJAParser::handle_BRANCHEND(const std::string& value, ParserState& state) {
-    if (!state.pending_branch_params.empty()) {
-        if (!this->branch_m.empty() && !this->branch_m.back().bars.empty()) {
-            set_branch_params(this->branch_m.back().bars, state.pending_branch_params, state.section_bar);
-        }
-        if (!this->branch_e.empty() && !this->branch_e.back().bars.empty()) {
-            set_branch_params(this->branch_e.back().bars, state.pending_branch_params, state.section_bar);
-        }
-        if (!this->branch_n.empty() && !this->branch_n.back().bars.empty()) {
-            set_branch_params(this->branch_n.back().bars, state.pending_branch_params, state.section_bar);
-        }
-        state.pending_branch_params.clear();
-        if (state.section_bar) {
-            state.section_bar.reset();
-        }
-    }
-
-    state.curr_note_list->clear();
-    state.curr_note_list->insert(state.curr_note_list->end(),
-                                master_notes.play_notes.begin(),
-                                master_notes.play_notes.end());
-    state.curr_draw_list = &master_notes.draw_notes;
-    state.curr_bar_list = &master_notes.bars;
+    state.curr_note_list = &master_notes.notes;
     state.curr_timeline = &master_notes.timeline;
+    state.is_branching = false;
 }
 
 void TJAParser::handle_LYRIC(const std::string& value, ParserState& state) {
@@ -1016,9 +918,7 @@ void TJAParser::handle_JPOSSCROLL(const std::string& part, ParserState& state) {
 
 void TJAParser::handle_N(const std::string& value, ParserState& state) {
     branch_n.push_back(NoteList());
-    state.curr_note_list = &branch_n.back().play_notes;
-    state.curr_draw_list = &branch_n.back().draw_notes;
-    state.curr_bar_list = &branch_n.back().bars;
+    state.curr_note_list = &branch_n.back().notes;
     state.curr_timeline = &branch_n.back().timeline;
     this->current_ms = state.start_branch_ms;
     state.bpm = state.start_branch_bpm;
@@ -1032,9 +932,7 @@ void TJAParser::handle_N(const std::string& value, ParserState& state) {
 
 void TJAParser::handle_E(const std::string& value, ParserState& state) {
     branch_e.push_back(NoteList());
-    state.curr_note_list = &branch_e.back().play_notes;
-    state.curr_draw_list = &branch_e.back().draw_notes;
-    state.curr_bar_list = &branch_e.back().bars;
+    state.curr_note_list = &branch_e.back().notes;
     state.curr_timeline = &branch_e.back().timeline;
     this->current_ms = state.start_branch_ms;
     state.bpm = state.start_branch_bpm;
@@ -1048,9 +946,7 @@ void TJAParser::handle_E(const std::string& value, ParserState& state) {
 
 void TJAParser::handle_M(const std::string& value, ParserState& state) {
     branch_m.push_back(NoteList());
-    state.curr_note_list = &branch_m.back().play_notes;
-    state.curr_draw_list = &branch_m.back().draw_notes;
-    state.curr_bar_list = &branch_m.back().bars;
+    state.curr_note_list = &branch_m.back().notes;
     state.curr_timeline = &branch_m.back().timeline;
     this->current_ms = state.start_branch_ms;
     state.bpm = state.start_branch_bpm;
@@ -1109,6 +1005,7 @@ Note TJAParser::add_bar(ParserState& state) {
     bar_line.type = 0;
     bar_line.display = state.barline_display;
     bar_line.bpm = state.bpm;
+    bar_line.index = state.index;
     bar_line.scroll_x = state.scroll_x_modifier;
     bar_line.scroll_y = state.scroll_y_modifier;
 
@@ -1173,59 +1070,41 @@ const std::map<int, std::string> TJAParser::DIFFS = {
     {6, "dan"}
 };
 
-std::pair<std::vector<Note>, std::vector<Note>> modifier_speed(const NoteList& notes, float value) {
-    std::vector<Note> modded_notes = notes.draw_notes;
-    std::vector<Note> modded_bars = notes.bars;
-
-    for (auto& note : modded_notes) {
+void modifier_speed(NoteList& notes, float value) {
+    for (auto& note : notes.notes) {
         note.scroll_x *= value;
     }
-    for (auto& bar : modded_bars) {
-        bar.scroll_x *= value;
-    }
-
-    return {modded_notes, modded_bars};
 }
 
-std::vector<Note> modifier_display(const NoteList& notes) {
-    std::vector<Note> modded_notes = notes.draw_notes;
-
-    for (auto& note : modded_notes) {
+void modifier_display(NoteList& notes) {
+    for (auto& note : notes.notes) {
         note.display = false;
     }
-
-    return modded_notes;
 }
 
-std::vector<Note> modifier_inverse(const NoteList& notes) {
-    std::vector<Note> modded_notes = notes.play_notes;
+void modifier_inverse(NoteList& notes) {
     std::map<int, int> type_mapping = {{1, 2}, {2, 1}, {3, 4}, {4, 3}};
 
-    for (auto& note : modded_notes) {
+    for (auto& note : notes.notes) {
         auto it = type_mapping.find(note.type);
         if (it != type_mapping.end()) {
             note.type = it->second;
         }
     }
-
-    return modded_notes;
 }
 
-std::vector<Note> modifier_random(const NoteList& notes, int value) {
+void modifier_random(NoteList& notes, int value) {
     // value: 1 == kimagure, 2 == detarame
-    std::vector<Note> modded_notes = notes.play_notes;
 
-    if (value == 0 || modded_notes.empty()) {
-        return modded_notes;
-    }
+    if (value == 0 || notes.notes.empty()) return;
 
-    int percentage = (modded_notes.size() / 5) * value;
-    percentage = std::min(percentage, static_cast<int>(modded_notes.size()));
+    int percentage = (notes.notes.size() / 5) * value;
+    percentage = std::min(percentage, static_cast<int>(notes.notes.size()));
 
     std::random_device rd;
     std::mt19937 gen(rd());
 
-    std::vector<int> indices(modded_notes.size());
+    std::vector<int> indices(notes.notes.size());
     std::iota(indices.begin(), indices.end(), 0);
     std::shuffle(indices.begin(), indices.end(), gen);
 
@@ -1234,26 +1113,20 @@ std::vector<Note> modifier_random(const NoteList& notes, int value) {
     std::map<int, int> type_mapping = {{1, 2}, {2, 1}, {3, 4}, {4, 3}};
 
     for (int i : selected_notes) {
-        auto it = type_mapping.find(modded_notes[i].type);
+        auto it = type_mapping.find(notes.notes[i].type);
         if (it != type_mapping.end()) {
-            modded_notes[i].type = it->second;
+            notes.notes[i].type = it->second;
         }
     }
-
-    return modded_notes;
 }
 
-std::vector<Note> modifier_moji(const NoteList& notes) {
+void modifier_moji(NoteList& notes) {
     static const std::map<int, int> se_notes = {
         {1, 0}, {2, 3}, {3, 5}, {4, 6},
         {5, 7}, {6, 8}, {7, 9}, {8, 10}, {9, 11}
     };
 
-    std::vector<Note> modded_notes = notes.draw_notes;
-
-    if (modded_notes.empty()) return modded_notes;
-
-    for (Note& note : modded_notes) {
+    for (Note& note : notes.notes) {
         auto it = se_notes.find(note.type);
         if (it != se_notes.end()) {
             note.moji = it->second;
@@ -1263,55 +1136,45 @@ std::vector<Note> modifier_moji(const NoteList& notes) {
     std::vector<Interval> intervals = {Interval::EIGHTH, Interval::TWELFTH, Interval::SIXTEENTH, Interval::TWENTYFOURTH, Interval::THIRTYSECOND};
 
     for (const auto& interval : intervals) {
-        auto streams = find_streams(notes.play_notes, interval);
+        auto streams = find_streams(notes.notes, interval);
         for (const auto& [start, length] : streams) {
             for (int i = start; i < start + length - 1; ++i) {
-                if (modded_notes[i].type == 1) {
-                    modded_notes[i].moji = 1;
-                } else if (modded_notes[i].type == 2) {
-                    modded_notes[i].moji = 4;
+                if (notes.notes[i].type == 1) {
+                    notes.notes[i].moji = 1;
+                } else if (notes.notes[i].type == 2) {
+                    notes.notes[i].moji = 4;
                 }
             }
             if (length == 3) {
-                if (modded_notes[start + 0].type == 1 &&
-                    modded_notes[start + 1].type == 1 &&
-                    modded_notes[start + 2].type == 1) {
-                    modded_notes[start + 1].moji = 2;
+                if (notes.notes[start + 0].type == 1 &&
+                    notes.notes[start + 1].type == 1 &&
+                    notes.notes[start + 2].type == 1) {
+                    notes.notes[start + 1].moji = 2;
                 }
             }
         }
     }
-
-    return modded_notes;
 }
 
-std::tuple<std::vector<Note>, std::vector<Note>, std::vector<Note>> apply_modifiers(const NoteList& notes, const Modifiers& modifiers) {
-    std::vector<Note> play_notes = notes.play_notes;
-    std::vector<Note> draw_notes = notes.draw_notes;
-    std::vector<Note> bars = notes.bars;
-
+void apply_modifiers(NoteList& notes, const Modifiers& modifiers) {
     if (modifiers.display) {
-        draw_notes = modifier_display(notes);
+        modifier_display(notes);
     }
 
     if (modifiers.inverse) {
-        play_notes = modifier_inverse(notes);
+        modifier_inverse(notes);
     }
 
     if (modifiers.random > 0) {
-        play_notes = modifier_random(notes, modifiers.random);
+        modifier_random(notes, modifiers.random);
     }
 
-    auto [speed_notes, speed_bars] = modifier_speed(notes, modifiers.speed);
-    draw_notes = speed_notes;
-    bars = speed_bars;
+    modifier_speed(notes, modifiers.speed);
 
-    draw_notes = modifier_moji(notes);
+    modifier_moji(notes);
 
     // play_notes = modifier_difficulty(notes, modifiers.subdiff);
     // draw_notes = modifier_difficulty(notes, modifiers.subdiff);
-
-    return {play_notes, draw_notes, bars};
 }
 
 Interval get_note_interval_type(double interval_ms, double bpm, double time_sig) {
