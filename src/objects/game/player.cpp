@@ -46,13 +46,13 @@ Player::Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param,
 }
 
 void Player::handle_timeline(double ms_from_start) {
+    if (timeline.empty()) return;
     TimelineObject timeline_object = timeline.front();
 
     //self.handle_scroll_type_commands(current_ms, timeline_object)
-    //self.handle_bpmchange(current_ms, timeline_object)
-    //self.handle_judgeposition(current_ms, timeline_object)
-    //self.handle_gogotime(current_ms, timeline_object)
-    //spdlog::info("{}, {}, {}", timeline_object.load_ms, timeline_object.hit_ms, ms_from_start);
+    handle_bpmchange(ms_from_start, timeline_object);
+    handle_judgeposition(ms_from_start, timeline_object);
+    handle_gogotime(ms_from_start, timeline_object);
     handle_branch_param(ms_from_start, timeline_object);
 }
 
@@ -105,7 +105,7 @@ void Player::merge_branch_section(NoteList branch_section, double current_ms) {
     timeline.insert(timeline.begin(), branch_section.timeline.begin(), branch_section.timeline.end());
 
     std::sort(timeline.begin(), timeline.end(),
-              [](const TimelineObject& a, const TimelineObject& b) { return a.load_ms < b.load_ms; });
+              [](const TimelineObject& a, const TimelineObject& b) { return a.start_time < b.start_time; });
 
     for (const auto& note : branch_section.notes) {
 
@@ -187,6 +187,7 @@ void Player::evaluate_branch(double current_ms) {
                 branch_e.pop_front();
             }
         }
+        branch_condition_count = 0;
     }
 }
 
@@ -409,12 +410,17 @@ void Player::reset_chart() {
 
 
     this->timeline = notes.timeline;
+
+    std::sort(this->timeline.begin(), this->timeline.end(),
+              [](const TimelineObject& a, const TimelineObject& b) { return a.start_time < b.start_time; });
+
     is_drumroll = false;
     curr_drumroll_count = 0;
     is_balloon = false;
     curr_balloon_count = 0;
     is_branch = false;
     branch_condition = "";
+    branch_condition_count = 0;
 
     NoteList total_notes; //all notes including master branch
 
@@ -478,9 +484,30 @@ float Player::get_position_y(Note note, double current_ms) {
     return (note.hit_ms - current_ms) * speedy;
 }
 
+void Player::handle_gogotime(double ms_from_start, TimelineObject timeline_object) {
+    if (timeline_object.start_time > ms_from_start) return;
+    if (!timeline_object.gogo_time.has_value()) return;
+
+    timeline.pop_front();
+}
+
+void Player::handle_judgeposition(double ms_from_start, TimelineObject timeline_object) {
+    if (timeline_object.start_time > ms_from_start) return;
+    if (!timeline_object.judge_pos_x.has_value()) return;
+
+    timeline.pop_front();
+}
+
+void Player::handle_bpmchange(double ms_from_start, TimelineObject timeline_object) {
+    if (timeline_object.start_time > ms_from_start) return;
+    if (!timeline_object.bpm.has_value()) return;
+
+    timeline.pop_front();
+}
+
 void Player::handle_branch_param(double ms_from_start, TimelineObject timeline_object) {
+    if (timeline_object.start_time > ms_from_start) return;
     if (!timeline_object.branch_params.has_value()) return;
-    if (timeline_object.hit_ms > ms_from_start) return;
 
     std::string params = timeline_object.branch_params.value();
 
@@ -499,30 +526,29 @@ void Player::handle_branch_param(double ms_from_start, TimelineObject timeline_o
         if (!is_branch) {
             is_branch = true;
             branch_condition = branch_cond;
-            branch_condition_count = 0;
 
             double branch_condition_end_time;
             if (!branch_m.empty() && !branch_m.front().notes.empty()) {
-                branch_condition_end_time = std::find_if(branch_m.front().notes.begin(), branch_m.front().notes.end(),
-                    [](const auto& note) { return note.type != 0;}) -> load_ms;
+                branch_condition_end_time = branch_m.front().notes.front().load_ms;
             } else if (!branch_e.empty() && !branch_e.front().notes.empty()) {
-                branch_condition_end_time = std::find_if(branch_e.front().notes.begin(), branch_e.front().notes.end(),
-                    [](const auto& note) { return note.type != 0;}) -> load_ms;
+                branch_condition_end_time = branch_e.front().notes.front().load_ms;
             } else if (!branch_n.empty() && !branch_n.front().notes.empty()) {
-                branch_condition_end_time = std::find_if(branch_n.front().notes.begin(), branch_n.front().notes.end(),
-                    [](const auto& note) { return note.type != 0;}) -> load_ms;
+                branch_condition_end_time = branch_n.front().notes.front().load_ms;
+            } else {
+                branch_condition_end_time = draw_note_list.front().load_ms;
             }
 
             if (branch_cond == "r") {
                 curr_branch_reqs = std::make_tuple(e_req, m_req, branch_condition_end_time, 1);
             } else if (branch_cond == "p") {
+                branch_condition_count = 0;
                 int note_count = 0;
                 for (Note note : draw_note_buffer) {
-                    if ((1 <= note.type && note.type <= 4) && timeline_object.hit_ms <= note.hit_ms && note.hit_ms <= branch_condition_end_time) note_count++;
+                    if ((1 <= note.type && note.type <= 4) && timeline_object.start_time <= note.hit_ms && note.hit_ms <= branch_condition_end_time) note_count++;
                 }
                 curr_branch_reqs = std::make_tuple(e_req, m_req, branch_condition_end_time, note_count);
             }
-            spdlog::info("branch condition measures started with conditions {}, {}, {}, starting at {} and ending at {}", branch_cond, e_req, m_req, timeline_object.hit_ms, branch_condition_end_time);
+            spdlog::info("branch condition measures started with conditions {}, {}, {}, starting at {} and ending at {}", branch_cond, e_req, m_req, timeline_object.start_time, branch_condition_end_time);
         }
     }
     timeline.pop_front();
@@ -537,9 +563,7 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
             else:
                 background.add_chibi(True, 1)*/
         bad_count++;
-        if (gauge.has_value()) {
-            gauge->add_bad();
-        }
+        if (gauge.has_value()) gauge->add_bad();
 
         don_notes.pop_front();
         if (is_branch && branch_condition == "p") {
@@ -555,9 +579,8 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
             else:
                 background.add_chibi(True, 1)*/
         bad_count++;
-        if (gauge.has_value()) {
-            gauge->add_bad();
-        }
+        if (gauge.has_value()) gauge->add_bad();
+
         kat_notes.pop_front();
         if (is_branch && branch_condition == "p") {
             branch_condition_count--;
@@ -576,8 +599,8 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
             other_notes.pop_front();
             is_drumroll = false;
             is_balloon = false;
-            curr_balloon_count = 0;
             curr_drumroll_count = 0;
+            curr_balloon_count = 0;
             return;
         }
         Note tail = other_notes[1];
@@ -586,8 +609,8 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
             other_notes.pop_front();
             is_drumroll = false;
             is_balloon = false;
-            curr_balloon_count = 0;
             curr_drumroll_count = 0;
+            curr_balloon_count = 0;
         }
     }
 }
@@ -595,7 +618,7 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
 void Player::draw_note_manager(double current_ms) {
     if (!draw_note_list.empty() && current_ms >= draw_note_list.front().load_ms) {
         Note current_note = draw_note_list.front();
-        draw_note_list.erase(draw_note_list.begin());
+        draw_note_list.pop_front();
 
         if (current_note.type >= 5 && current_note.type <= 7) {
             auto pos = std::lower_bound(draw_note_buffer.begin(), draw_note_buffer.end(),
@@ -700,7 +723,7 @@ void Player::check_drumroll(double current_ms, DrumType drum_type) { //backgroun
     draw_arc_list.push_back(NoteArc((int)drum_type, current_ms, PlayerNum(is_2p + 1), (int)drum_type == 3 || (int)drum_type == 4, false));
     curr_drumroll_count++;
     total_drumroll++;
-    if (is_branch && branch_condition == "r") {
+    if (branch_condition != "p") {
         branch_condition_count++;
     }
     /*if background is not None:

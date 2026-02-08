@@ -78,7 +78,7 @@ private:
     std::deque<Note> kat_notes;
     std::deque<Note> other_notes;
 
-    std::vector<Note> draw_note_list;
+    std::deque<Note> draw_note_list;
     std::vector<Note> draw_note_buffer;
 
     std::deque<NoteList> branch_m;
@@ -145,6 +145,9 @@ private:
 
     float get_position_y(Note note, double current_ms);
 
+    void handle_gogotime(double ms_from_start, TimelineObject timeline_object);
+    void handle_judgeposition(double ms_from_start, TimelineObject timeline_object);
+    void handle_bpmchange(double ms_from_start, TimelineObject timeline_object);
     void handle_branch_param(double ms_from_start, TimelineObject timeline_object);
 
     void play_note_manager(double current_ms);

@@ -42,26 +42,22 @@ enum class ScrollType : int {
 };
 
 struct TimelineObject {
-    double hit_ms;
-    double load_ms;
-
-    double judge_pos_x;
-    double judge_pos_y;
-    double delta_x;
-    double delta_y;
+    double start_time;
+    double end_time;
 
     std::optional<double> bpm;
-    double bpmchange;
-    double delay;
-    bool gogo_time;
     std::optional<std::string> branch_params;
-    bool is_branch_start = false;
-    bool is_section_marker = false;
+    std::optional<double> delay;
+    std::optional<double> bpmchange;
+    std::optional<bool> gogo_time;
+
+    std::optional<double> judge_pos_x;
+    std::optional<double> judge_pos_y;
+    std::optional<double> delta_x;
+    std::optional<double> delta_y;
+
     std::string lyric = "";
 
-    bool operator<(const TimelineObject& other) const {
-        return load_ms < other.load_ms;
-    }
 };
 
 class Note {

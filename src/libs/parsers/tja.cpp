@@ -1,5 +1,4 @@
 #include "tja.h"
-#include <spdlog/spdlog.h>
 
 double get_ms_per_measure(double bpm_val, double time_sig) {
     if (bpm_val == 0) return 0;
@@ -409,7 +408,7 @@ TJAParser::notes_to_position(int diff) {
                 // Apply delay if present
                 if (state.delay_current != 0.0f) {
                     TimelineObject delay_timeline;
-                    delay_timeline.hit_ms = state.delay_last_note_ms;
+                    delay_timeline.start_time = state.delay_last_note_ms;
                     delay_timeline.delay = state.delay_current;
                     state.curr_timeline->push_back(delay_timeline);
                     state.delay_current = 0.0f;
@@ -747,12 +746,12 @@ void TJAParser::handle_BPMCHANGE(const std::string& value, ParserState& state) {
         state.bpmchange_last_bpm = parsed_bpm;
 
         TimelineObject bpmchange_timeline;
-        bpmchange_timeline.hit_ms = this->current_ms;
+        bpmchange_timeline.start_time = this->current_ms;
         bpmchange_timeline.bpmchange = bpmchange;
         state.curr_timeline->push_back(bpmchange_timeline);
     } else {
         TimelineObject timeline_obj;
-        timeline_obj.hit_ms = this->current_ms;
+        timeline_obj.start_time = this->current_ms;
         timeline_obj.bpm = parsed_bpm;
         state.bpm = parsed_bpm;
         state.curr_timeline->push_back(timeline_obj);
@@ -761,14 +760,14 @@ void TJAParser::handle_BPMCHANGE(const std::string& value, ParserState& state) {
 
 void TJAParser::handle_GOGOSTART(const std::string& value, ParserState& state) {
     TimelineObject timeline_obj;
-    timeline_obj.hit_ms = current_ms;
+    timeline_obj.start_time = current_ms;
     timeline_obj.gogo_time = true;
     state.curr_timeline->push_back(timeline_obj);
 }
 
 void TJAParser::handle_GOGOEND(const std::string& value, ParserState& state) {
     TimelineObject timeline_obj;
-    timeline_obj.hit_ms = current_ms;
+    timeline_obj.start_time = current_ms;
     timeline_obj.gogo_time = false;
     state.curr_timeline->push_back(timeline_obj);
 }
@@ -807,13 +806,13 @@ void TJAParser::handle_BRANCHSTART(const std::string& value, ParserState& state)
     std::string branch_params = value;
 
     TimelineObject branch_obj;
+    double two_measures = (240000 / state.bpm) * 2;
     if (state.section_bar.has_value()) {
-        branch_obj.hit_ms = state.section_bar.value().hit_ms;
+        branch_obj.start_time = state.section_bar.value().hit_ms - two_measures;
         state.section_bar.reset();
     } else {
-        branch_obj.hit_ms = this->current_ms;
+        branch_obj.start_time = this->current_ms - two_measures;
     }
-    //branch_obj.load_ms = branch_obj.hit_ms - (240000 * state.time_signature / state.bpm);
     branch_obj.branch_params = branch_params;
     state.curr_timeline->push_back(branch_obj);
 
@@ -836,7 +835,7 @@ void TJAParser::handle_BRANCHEND(const std::string& value, ParserState& state) {
 
 void TJAParser::handle_LYRIC(const std::string& value, ParserState& state) {
     TimelineObject timeline_obj = TimelineObject();
-    timeline_obj.hit_ms = this->current_ms;
+    timeline_obj.start_time = this->current_ms;
     timeline_obj.lyric = value;
     state.curr_timeline->push_back(timeline_obj);
 }
@@ -890,21 +889,21 @@ void TJAParser::handle_JPOSSCROLL(const std::string& part, ParserState& state) {
         TimelineObject& obj = *it;
 
         // Check if object has delta_x and delta_y (all TimelineObjects should have these)
-        if (obj.hit_ms > this->current_ms) {
-            float available_time = this->current_ms - obj.load_ms;
-            float total_duration = obj.hit_ms - obj.load_ms;
+        if (obj.end_time > this->current_ms) {
+            float available_time = this->current_ms - obj.start_time;
+            float total_duration = obj.end_time - obj.start_time;
             double ratio = (total_duration > 0) ? std::min(1.0f, available_time / total_duration) : 1.0f;
 
-            obj.delta_x *= ratio;
-            obj.delta_y *= ratio;
-            obj.hit_ms = this->current_ms;
+            obj.delta_x.value() *= ratio;
+            obj.delta_y.value() *= ratio;
+            obj.end_time = this->current_ms;
             break;
         }
     }
 
     TimelineObject jpos_scroll;
-    jpos_scroll.load_ms = this->current_ms;
-    jpos_scroll.hit_ms = this->current_ms + duration_ms;
+    jpos_scroll.start_time = this->current_ms;
+    jpos_scroll.end_time = this->current_ms + duration_ms;
     jpos_scroll.judge_pos_x = state.judge_pos_x;
     jpos_scroll.judge_pos_y = state.judge_pos_y;
     jpos_scroll.delta_x = delta_x;
