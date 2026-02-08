@@ -74,26 +74,25 @@ private:
     Side autoplay_hit_side;
     int last_subdivision;
 
-    NoteList notes;
+    std::deque<Note> don_notes;
+    std::deque<Note> kat_notes;
+    std::deque<Note> other_notes;
+
+    std::vector<Note> draw_note_list;
+    std::vector<Note> draw_note_buffer;
+
     std::vector<NoteList> branch_m;
     std::vector<NoteList> branch_e;
     std::vector<NoteList> branch_n;
+
+    std::vector<TimelineObject> timeline;
+    int timeline_index;
 
     int base_score;
     int score_init;
     int score_diff;
 
-    std::vector<TimelineObject> timeline;
-    int timeline_index;
-    std::vector<Note> current_bars;
-    std::vector<Note> current_notes_draw;
-
-    std::vector<Note> draw_note_list;
-    std::vector<Note> draw_bar_list;
-
-    std::deque<Note> don_notes;
-    std::deque<Note> kat_notes;
-    std::deque<Note> other_notes;
+    double end_time;
 
     bool is_drumroll;
     int curr_drumroll_count;
@@ -106,8 +105,6 @@ private:
     std::tuple<float, float, double, int> curr_branch_reqs;
     int branch_condition_count;
     std::string branch_condition;
-
-    float end_time;
 
     std::string don_hitsound;
     std::string kat_hitsound;
@@ -149,7 +146,7 @@ private:
 
     float get_position_y(Note note, double current_ms);
 
-    void bar_manager(double current_ms);
+    void handle_branch_param(double ms_from_start, TimelineObject timeline_object);
 
     void play_note_manager(double current_ms);
 
@@ -177,7 +174,7 @@ private:
 
     void handle_input(double ms_from_start, double current_ms);
 
-    void draw_bars(double current_ms);
+    void draw_bar(double current_ms, Note bar);
 
     void draw_drumroll(double current_ms, Note head, int current_eighth);
 
