@@ -21,6 +21,8 @@ bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& 
     }
 
     // Check gamepad buttons (offset by 10000)
+    if (gamepad_buttons.empty()) return false;
+
     for (int button : gamepad_buttons) {
         if (check_key_pressed(10000 + button)) return true;
     }
@@ -168,6 +170,10 @@ bool is_key_down_native(int raylib_key) {
 void input_polling_thread() {
     std::vector<int> local_pressed;
     std::vector<int> local_released;
+
+    // Reserve capacity to avoid reallocations during hot path
+    local_pressed.reserve(16);
+    local_released.reserve(16);
 
     while (input_thread_running) {
         local_pressed.clear();

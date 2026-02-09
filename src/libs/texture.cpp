@@ -397,15 +397,18 @@ void TextureWrapper::clear_screen(const ray::Color& color) {
 void TextureWrapper::draw_texture(const std::string& subset, const std::string& texture_name,
     const DrawTextureParams& params) {
 
-    if (textures.find(subset) == textures.end()) return;
-    if (textures[subset].find(texture_name) == textures[subset].end()) return;
+    auto subset_it = textures.find(subset);
+    if (subset_it == textures.end()) return;
 
-    float mirror_x = (params.mirror == "horizontal") ? -1.0f : 1.0f;
-    float mirror_y = (params.mirror == "vertical") ? -1.0f : 1.0f;
+    auto texture_it = subset_it->second.find(texture_name);
+    if (texture_it == subset_it->second.end()) return;
 
-    ray::Color final_color = (params.fade != 1.1f) ? Fade(params.color, params.fade) : params.color;
+    TextureObject* tex_obj = texture_it->second.get();
 
-    TextureObject* tex_obj = textures[subset][texture_name].get();
+    const float mirror_x = (params.mirror == "horizontal") ? -1.0f : 1.0f;
+    const float mirror_y = (params.mirror == "vertical") ? -1.0f : 1.0f;
+
+    const ray::Color final_color = (params.fade != 1.1f) ? Fade(params.color, params.fade) : params.color;
 
     ray::Rectangle source_rect;
     if (params.src.has_value()) {
@@ -413,23 +416,34 @@ void TextureWrapper::draw_texture(const std::string& subset, const std::string& 
     } else if (tex_obj->crop_data.has_value()) {
         source_rect = (*tex_obj->crop_data)[params.frame];
     } else {
-        source_rect = ray::Rectangle{0, 0,
-            static_cast<float>(tex_obj->width) * mirror_x,
-            static_cast<float>(tex_obj->height) * mirror_y};
+        const float width = static_cast<float>(tex_obj->width);
+        const float height = static_cast<float>(tex_obj->height);
+        source_rect = ray::Rectangle{0, 0, width * mirror_x, height * mirror_y};
     }
+
+    // Calculate destination rectangle with reduced redundant calculations
+    const float base_x = tex_obj->x[params.index];
+    const float base_y = tex_obj->y[params.index];
+    const float width = static_cast<float>(tex_obj->width);
+    const float height = static_cast<float>(tex_obj->height);
 
     ray::Rectangle dest_rect;
     if (params.center) {
+        const float half_width = width * 0.5f;
+        const float half_height = height * 0.5f;
+        const float scaled_half_width = (width * params.scale) * 0.5f;
+        const float scaled_half_height = (height * params.scale) * 0.5f;
+
         dest_rect = ray::Rectangle{
-            tex_obj->x[params.index] + (tex_obj->width / 2.0f) - ((tex_obj->width * params.scale) / 2.0f) + params.x,
-            tex_obj->y[params.index] + (tex_obj->height / 2.0f) - ((tex_obj->height * params.scale) / 2.0f) + params.y,
+            base_x + half_width - scaled_half_width + params.x,
+            base_y + half_height - scaled_half_height + params.y,
             tex_obj->x2[params.index] * params.scale + params.x2,
             tex_obj->y2[params.index] * params.scale + params.y2
         };
     } else {
         dest_rect = ray::Rectangle{
-            static_cast<float>(tex_obj->x[params.index]) + params.x,
-            static_cast<float>(tex_obj->y[params.index]) + params.y,
+            base_x + params.x,
+            base_y + params.y,
             tex_obj->x2[params.index] * params.scale + params.x2,
             tex_obj->y2[params.index] * params.scale + params.y2
         };

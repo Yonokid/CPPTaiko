@@ -41,7 +41,10 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
     engine->lock.lock();
 
     // Initialize output buffer with silence
-    std::memset(out, 0, framesPerBuffer * 2 * sizeof(float));
+    const unsigned long buffer_size = framesPerBuffer * 2;
+    for (unsigned long i = 0; i < buffer_size; i++) {
+        out[i] = 0.0f;
+    }
 
     for (auto& [name, snd] : engine->sounds) {
         if (!snd.is_playing) continue;
@@ -62,31 +65,36 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
             unsigned long frames_available = snd.frame_count - snd.current_frame;
             unsigned long frames_to_read = (frames_to_process < frames_available) ? frames_to_process : frames_available;
 
+            const float volume = snd.volume;
+            const float pan = snd.pan;
+            const float* data_ptr = snd.data;
+            const unsigned int channels = snd.channels;
+
             for (unsigned long i = 0; i < frames_to_read; i++) {
-                unsigned long src_index = (snd.current_frame + i) * snd.channels;
+                unsigned long src_index = (snd.current_frame + i) * channels;
                 unsigned long dst_index = (output_index + i) * 2;  // Stereo output
 
                 float left, right;
 
-                if (snd.channels == 1) {
+                if (channels == 1) {
                     // Mono source - apply pan
-                    float sample = snd.data[src_index];
-                    left = sample * (1.0f - snd.pan);
-                    right = sample * snd.pan;
+                    float sample = data_ptr[src_index];
+                    left = sample * (1.0f - pan);
+                    right = sample * pan;
                 } else {
                     // Stereo source - apply pan as balance
-                    left = snd.data[src_index];
-                    right = snd.data[src_index + 1];
+                    left = data_ptr[src_index];
+                    right = data_ptr[src_index + 1];
 
-                    if (snd.pan < 0.5f) {
-                        right *= (snd.pan * 2.0f);
-                    } else if (snd.pan > 0.5f) {
-                        left *= ((1.0f - snd.pan) * 2.0f);
+                    if (pan < 0.5f) {
+                        right *= (pan * 2.0f);
+                    } else if (pan > 0.5f) {
+                        left *= ((1.0f - pan) * 2.0f);
                     }
                 }
 
-                out[dst_index] += left * snd.volume;
-                out[dst_index + 1] += right * snd.volume;
+                out[dst_index] += left * volume;
+                out[dst_index + 1] += right * volume;
             }
 
             snd.current_frame += frames_to_read;
@@ -152,8 +160,10 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
             unsigned long frames_available = mus.frames_in_buffer - mus.buffer_position;
             unsigned long frames_to_read = (frames_to_process < frames_available) ? frames_to_process : frames_available;
 
-            unsigned int channels = mus.file_info.channels;
-            float* source_buffer = mus.resampler ? mus.resample_buffer : mus.stream_buffer;
+            const unsigned int channels = mus.file_info.channels;
+            const float* source_buffer = mus.resampler ? mus.resample_buffer : mus.stream_buffer;
+            const float volume = mus.volume;
+            const float pan = mus.pan;
 
             for (unsigned long i = 0; i < frames_to_read; i++) {
                 unsigned long src_index = (mus.buffer_position + i) * channels;
@@ -164,22 +174,22 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
                 if (channels == 1) {
                     // Mono source - apply pan
                     float sample = source_buffer[src_index];
-                    left = sample * (1.0f - mus.pan);
-                    right = sample * mus.pan;
+                    left = sample * (1.0f - pan);
+                    right = sample * pan;
                 } else {
                     // Stereo source - apply pan as balance
                     left = source_buffer[src_index];
                     right = source_buffer[src_index + 1];
 
-                    if (mus.pan < 0.5f) {
-                        right *= (mus.pan * 2.0f);
-                    } else if (mus.pan > 0.5f) {
-                        left *= ((1.0f - mus.pan) * 2.0f);
+                    if (pan < 0.5f) {
+                        right *= (pan * 2.0f);
+                    } else if (pan > 0.5f) {
+                        left *= ((1.0f - pan) * 2.0f);
                     }
                 }
 
-                out[dst_index] += left * mus.volume;
-                out[dst_index + 1] += right * mus.volume;
+                out[dst_index] += left * volume;
+                out[dst_index + 1] += right * volume;
             }
 
             mus.buffer_position += frames_to_read;
@@ -189,12 +199,12 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
         }
     }
 
-    float master_vol = engine->master_volume;
-    for (unsigned long i = 0; i < framesPerBuffer * 2; i++) {
-        out[i] *= master_vol;
+    const float master_vol = engine->master_volume;
+    const unsigned long output_buffer_size = framesPerBuffer * 2;
 
-        if (out[i] > 1.0f) out[i] = 1.0f;
-        if (out[i] < -1.0f) out[i] = -1.0f;
+    for (unsigned long i = 0; i < output_buffer_size; i++) {
+        float sample = out[i] * master_vol;
+        out[i] = (sample > 1.0f) ? 1.0f : ((sample < -1.0f) ? -1.0f : sample);
     }
 
     engine->lock.unlock();

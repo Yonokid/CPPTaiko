@@ -330,9 +330,15 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "AddressSanitizer enabled for Debug build")
 else()
     target_compile_options(${PROJECT_NAME} PRIVATE
-        -O0  # No optimization for debug
-        -g   # Debug symbols
-        -fmax-errors=0
+        -O3  # Maximum optimization
+        -march=native  # Optimize for current CPU
+        -DNDEBUG  # Disable assertions
+        -ffast-math  # Fast floating-point math
+        -flto  # Link-time optimization
+    )
+    target_link_options(${PROJECT_NAME} PRIVATE
+        -flto  # Link-time optimization
+        -s  # Strip symbols
     )
 endif()
 
