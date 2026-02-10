@@ -63,7 +63,7 @@ void Player::handle_timeline(double ms_from_start) {
     }
 }
 
-void Player::autoplay_manager(double ms_from_start, double current_ms) {// Background background) {
+void Player::autoplay_manager(double ms_from_start, double current_ms, std::optional<Background>& background) {
     if (!modifiers.auto_play) return;
 
     double subdivision_in_ms;
@@ -80,7 +80,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms) {// Backg
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
             audio->play_sound(don_hitsound, "hitsound");
-            check_note(ms_from_start, hit_type, current_ms);//, background);
+            check_note(ms_from_start, hit_type, current_ms, background);
         }
     } else {
         while (!don_notes.empty() && ms_from_start >= don_notes.front().hit_ms) {
@@ -88,7 +88,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms) {// Backg
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
             audio->play_sound(don_hitsound, "hitsound");
-            check_note(ms_from_start, hit_type, current_ms);//, background);
+            check_note(ms_from_start, hit_type, current_ms, background);
         }
 
         while (!kat_notes.empty() && ms_from_start >= kat_notes.front().hit_ms) {
@@ -96,7 +96,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms) {// Backg
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
             audio->play_sound(kat_hitsound, "hitsound");
-            check_note(ms_from_start, hit_type, current_ms);//, background);
+            check_note(ms_from_start, hit_type, current_ms, background);
         }
     }
 }
@@ -198,8 +198,8 @@ void Player::evaluate_branch(double current_ms) {
     }
 }
 
-void Player::update(double ms_from_start, double current_ms) {
-    note_manager(ms_from_start);//, background);
+void Player::update(double ms_from_start, double current_ms, std::optional<Background>& background) {
+    note_manager(ms_from_start, background);
     combo_display.update(current_ms, combo);
     if (combo_announce.has_value()) {
         combo_announce->update(current_ms);
@@ -271,8 +271,8 @@ void Player::update(double ms_from_start, double current_ms) {
         }
     }
     score_counter.update(current_ms, score);
-    autoplay_manager(ms_from_start, current_ms);//, background);
-    handle_input(ms_from_start, current_ms);//, background);
+    autoplay_manager(ms_from_start, current_ms, background);
+    handle_input(ms_from_start, current_ms, background);
     //self.nameplate.update(current_ms)
     if (gauge.has_value()) {
         gauge->update(current_ms);
@@ -619,14 +619,10 @@ void Player::handle_branch_param(double ms_from_start, const TimelineObject& tim
     timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
 }
 
-void Player::play_note_manager(double current_ms) {//, background: Optional[Background]):
+void Player::play_note_manager(double current_ms, std::optional<Background>& background) {
     if (!don_notes.empty() && don_notes.front().hit_ms + Timing::BAD < current_ms) {
         combo = 0;
-        /*if background is not None:
-            if self.is_2p:
-                background.add_chibi(True, 2)
-            else:
-                background.add_chibi(True, 1)*/
+        if (background.has_value()) background->add_chibi(true, PlayerNum(1 + is_2p));
         bad_count++;
         if (gauge.has_value()) gauge->add_bad();
 
@@ -638,11 +634,7 @@ void Player::play_note_manager(double current_ms) {//, background: Optional[Back
 
     if (!kat_notes.empty() && kat_notes.front().hit_ms + Timing::BAD < current_ms) {
         combo = 0;
-        /*if background is not None:
-            if self.is_2p:
-                background.add_chibi(True, 2)
-            else:
-                background.add_chibi(True, 1)*/
+        if (background.has_value()) background->add_chibi(true, PlayerNum(1 + is_2p));
         bad_count++;
         if (gauge.has_value()) gauge->add_bad();
 
@@ -736,8 +728,8 @@ void Player::draw_note_manager(double current_ms) {
     }
 }
 
-void Player::note_manager(double current_ms) {//, background: Optional[Background]):
-    play_note_manager(current_ms);//, background)
+void Player::note_manager(double current_ms, std::optional<Background>& background) {
+    play_note_manager(current_ms, background);
     draw_note_manager(current_ms);
 }
 
@@ -784,15 +776,14 @@ void Player::note_correct(const Note& note, double current_ms) {
     }
 }
 
-void Player::check_drumroll(double current_ms, DrumType drum_type) { //background: Optional[Background]
+void Player::check_drumroll(double current_ms, DrumType drum_type, std::optional<Background>& background) {
     draw_arc_list.push_back(NoteArc((int)drum_type, current_ms, PlayerNum(is_2p + 1), (int)drum_type == 3 || (int)drum_type == 4, false));
     curr_drumroll_count++;
     total_drumroll++;
     if (branch_condition != "p") {
         branch_condition_count++;
     }
-    /*if background is not None:
-        background.add_renda()*/
+    if (background.has_value()) background->add_renda();
     score += 100;
     if (base_score_list.size() < 5) {
         base_score_list.push_back(ScoreCounterAnimation(player_num, 100, is_2p));
@@ -852,7 +843,7 @@ void Player::check_kusudama(double current_ms, const Note& balloon) {
     }
 }
 
-void Player::check_note(double ms_from_start, DrumType drum_type, double current_ms) {//, background: Optional[Background]):
+void Player::check_note(double ms_from_start, DrumType drum_type, double current_ms, std::optional<Background>& background) {
     if (don_notes.empty() && kat_notes.empty() && other_notes.empty()) return;
 
     float good_window_ms;
@@ -882,7 +873,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
 
     Note curr_note;
     if (is_drumroll && !other_notes.empty()) {
-        check_drumroll(current_ms, drum_type);
+        check_drumroll(current_ms, drum_type, background);
         return;
     } else if (is_balloon && !other_notes.empty()) {
         curr_note = other_notes.front();
@@ -911,17 +902,11 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                 base_score_list.push_back(ScoreCounterAnimation(player_num, base_score, is_2p));
             }
             note_correct(curr_note, current_ms);
-            if (gauge.has_value()) {
-                gauge->add_good();
-            }
+            if (gauge.has_value()) gauge->add_good();
             if (is_branch && branch_condition == "p") {
                 branch_condition_count++;
             }
-            /*if background is not None:
-                if self.is_2p:
-                    background.add_chibi(False, 2)
-                else:
-                    background.add_chibi(False, 1)*/
+            if (background.has_value()) background->add_chibi(true, PlayerNum(1 + is_2p));
 
         } else if ((curr_note.hit_ms - ok_window_ms) <= ms_from_start && ms_from_start <= (curr_note.hit_ms + ok_window_ms)) {
             draw_judge_list.push_back(Judgment(Judgments::OK, big, is_2p));
@@ -932,17 +917,11 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                 base_score_list.push_back(ScoreCounterAnimation(player_num, 10 * std::floor(base_score / 2 / 10), is_2p));
             }
             note_correct(curr_note, current_ms);
-            if (gauge.has_value()) {
-                gauge->add_ok();
-            }
+            if (gauge.has_value()) gauge->add_ok();
             if (is_branch && branch_condition == "p") {
                 branch_condition_count += 0.5;
             }
-            /*if background is not None:
-                if self.is_2p:
-                    background.add_chibi(False, 2)
-                else:
-                    background.add_chibi(False, 1)*/
+            if (background.has_value()) background->add_chibi(false, PlayerNum(1 + is_2p));
 
         } else if ((curr_note.hit_ms - bad_window_ms) <= ms_from_start && ms_from_start <= (curr_note.hit_ms + bad_window_ms)) {
             draw_judge_list.push_back(Judgment(Judgments::BAD, big, is_2p));
@@ -960,14 +939,8 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
                 std::remove(draw_note_buffer.begin(), draw_note_buffer.end(), note),
                 draw_note_buffer.end()
             );
-            if (gauge.has_value()) {
-                gauge->add_bad();
-            }
-            /*if background is not None:
-                if self.is_2p:
-                    background.add_chibi(True, 2)
-                else:
-                    background.add_chibi(True, 1)*/
+            if (gauge.has_value()) gauge->add_bad();
+            if (background.has_value()) background->add_chibi(false, PlayerNum(1 + is_2p));
         }
     }
 }
@@ -1018,7 +991,7 @@ void Player::spawn_hit_effects(DrumType drum_type, Side side) {
     }
 }
 
-void Player::handle_input(double ms_from_start, double current_ms) { //, Background* background) {
+void Player::handle_input(double ms_from_start, double current_ms, std::optional<Background>& background) {
     struct InputCheck {
         bool (*check_func)(PlayerNum);
         DrumType drum_type;
@@ -1038,7 +1011,7 @@ void Player::handle_input(double ms_from_start, double current_ms) { //, Backgro
         while (input.check_func(player_num)) {
             spawn_hit_effects(input.drum_type, input.side);
             audio->play_sound(input.sound, "hitsound");
-            check_note(ms_from_start, input.drum_type, current_ms);//, background);
+            check_note(ms_from_start, input.drum_type, current_ms, background);
         }
     }
 }

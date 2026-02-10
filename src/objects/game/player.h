@@ -21,6 +21,7 @@
 #include "kusudama_counter.h"
 #include "score_counter.h"
 #include "score_counter_animation.h"
+#include "background.h"
 
 namespace JudgePos {
     inline float X = 414 * tex.screen_scale;
@@ -41,7 +42,7 @@ public:
     Player(std::optional<TJAParser>& parser_ref, PlayerNum player_num_param, int difficulty_param,
            bool is_2p_param, const Modifiers& modifiers_param);
 
-    void update(double ms_from_start, double current_ms);
+    void update(double ms_from_start, double current_ms, std::optional<Background>& background);
 
     void draw(double ms_from_start, ray::Shader& mask_shader);
 
@@ -134,7 +135,7 @@ private:
 
     void handle_timeline(double ms_from_start);
 
-    void autoplay_manager(double ms_from_start, double current_ms);
+    void autoplay_manager(double ms_from_start, double current_ms, std::optional<Background>& background);
 
     void evaluate_branch(double current_ms);
 
@@ -152,23 +153,23 @@ private:
     void handle_bpmchange(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
     void handle_branch_param(double ms_from_start, const TimelineObject& timeline_object, int buffer_index);
 
-    void play_note_manager(double current_ms);
+    void play_note_manager(double current_ms, std::optional<Background>& background);
 
     bool is_balloon_type(int type);
 
     void draw_note_manager(double current_ms);
 
-    void note_manager(double current_ms);
+    void note_manager(double current_ms, std::optional<Background>& background);
 
     void note_correct(const Note& note, double current_ms);
 
-    void check_drumroll(double current_ms, DrumType drum_type);
+    void check_drumroll(double current_ms, DrumType drum_type, std::optional<Background>& background);
 
     void check_balloon(double current_ms, DrumType drum_type, const Note& balloon);
 
     void check_kusudama(double current_ms, const Note& balloon);
 
-    void check_note(double ms_from_start, DrumType drum_type, double current_ms);
+    void check_note(double ms_from_start, DrumType drum_type, double current_ms, std::optional<Background>& background);
 
     void drumroll_counter_manager(double current_ms);
 
@@ -176,7 +177,7 @@ private:
 
     void spawn_hit_effects(DrumType drum_type, Side side);
 
-    void handle_input(double ms_from_start, double current_ms);
+    void handle_input(double ms_from_start, double current_ms, std::optional<Background>& background);
 
     void draw_bar(double current_ms, const Note& bar);
 

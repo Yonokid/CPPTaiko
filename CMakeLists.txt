@@ -92,6 +92,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(spdlog)
 
+# Lua
+FetchContent_Declare(
+    lua
+    GIT_REPOSITORY https://github.com/walterschell/Lua.git
+    GIT_TAG v5.4.6
+    GIT_SHALLOW TRUE
+)
+set(LUA_BUILD_AS_CXX ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(lua)
+
 # libsndfile
 if(WIN32)
     message(STATUS "Using local libsndfile on Windows")
@@ -244,6 +254,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     digestpp
     tomlplusplus::tomlplusplus
     spdlog::spdlog
+    lua
 )
 
 # Platform specific (Thanks GPT)

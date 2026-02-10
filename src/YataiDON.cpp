@@ -6,6 +6,7 @@
 #include "libs/global_data.h"
 #include "libs/screen.h"
 #include "libs/config.h"
+#include "libs/script.h"
 #include "scenes/game.h"
 #include "libs/utils.h"
 #include "libs/audio.h"
@@ -201,14 +202,21 @@ int main(int argc, char* argv[]) {
         spdlog::warn("Skin directory not found, skipping texture initialization");
     }
 
+    fs::path script_path = fs::path("Skins") / global_data.config->paths.skin / "Scripts";
+    if (fs::exists(script_path)) {
+        script_manager.init(script_path);
+    } else {
+        spdlog::warn("Skin directory not found, skipping script initialization");
+    }
+
     if (global_data.config->general.score_method == ScoreMethod::GEN3) {
         global_data.score_db = "scores_gen3.db";
     } else {
         global_data.score_db = "scores.db";
     }
     spdlog::info("Starting YataiDON");
-    int screen_width = 1280;//global_tex.screen_width
-    int screen_height = 720;//global_tex.screen_height
+    int screen_width = 1280;// * tex.screen_width;
+    int screen_height = 720;// * tex.screen_height;
 
     set_config_flags();
     ray::InitWindow(screen_width, screen_height, "YataiDON");

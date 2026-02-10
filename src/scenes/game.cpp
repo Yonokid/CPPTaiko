@@ -12,7 +12,6 @@ void GameScreen::on_screen_start() {
     song_started = false;
     paused = false;
     pause_time = 0;
-    song_music = std::nullopt;
     if (global_data.config->general.nijiiro_notes) {
         tex.textures["game"].erase("notes");
         tex.load_folder("game", "notes_nijiiro");
@@ -29,17 +28,17 @@ void GameScreen::on_screen_start() {
     init_tja(session_data.selected_song);
     spdlog::info("TJA initialized for song: {}", session_data.selected_song.string());
     load_hitsounds();
-    //self.song_info = SongInfo(session_data.song_title, session_data.genre_index)
+    //song_info = SongInfo(session_data.song_title, session_data.genre_index)
     //self.result_transition = ResultTransition(global_data.player_num)
     //subtitle = self.parser.metadata.subtitle.get(global_data.config['general']['language'].lower(), '')
     bpm = parser->metadata.bpm;
     scene_preset = parser->metadata.scene_preset;
-    /*if self.movie is None:
-        self.background = Background(global_data.player_num, self.bpm, scene_preset=scene_preset)
-        logger.info("Background initialized")
-    else:
-        self.background = None
-        logger.info("Movie initialized")*/
+    //if self.movie is None:
+        background.emplace(global_data.player_num, bpm, scene_preset);
+        spdlog::info("Background initialized");
+    //else:
+        //self.background = None
+        //logger.info("Movie initialized")
     //self.transition = Transition(session_data.song_title, subtitle, is_second=True)
     //self.allnet_indicator = AllNetIcon()
     //self.transition.start()
@@ -49,14 +48,15 @@ std::string GameScreen::on_screen_end(const std::string& next_screen) {
     song_started = false;
     end_ms = 0;
     ray::UnloadShader(mask_shader);
-    /*
-    if self.movie is not None:
-        self.movie.stop()
-        logger.info("Movie stopped")
-    if self.background is not None:
-        self.background.unload()
-        logger.info("Background unloaded")
-     */
+
+    //if self.movie is not None:
+        //self.movie.stop()
+        //logger.info("Movie stopped")
+    if (background.has_value()) {
+        background.reset();
+        spdlog::info("Background unloaded");
+    }
+
     return Screen::on_screen_end(next_screen);
 }
 
@@ -92,7 +92,7 @@ void GameScreen::init_tja(fs::path song) {
         self.movie = None
         */
     //global_data.session_data[(int)global_data.player_num].song_title = parser->metadata.title.get(global_data.config->general.language.lower(), parser->metadata.title["en"])
-    if (fs::exists(parser->metadata.wave) && song_music == std::nullopt) {
+    if (fs::exists(parser->metadata.wave) && !song_music.has_value()) {
         song_music = audio->load_music_stream(parser->metadata.wave, "song");
     }
 
@@ -105,7 +105,7 @@ void GameScreen::start_song(double ms_from_start) {
     if (ms_from_start >= parser->metadata.offset*1000 + start_delay - (double)global_data.config->general.audio_offset && !song_started) {
         if (song_music.has_value()) {
             audio->play_music_stream(song_music.value(), "music");
-            //logger.info(f"Song started at {ms_from_start}")
+            spdlog::info("Song started at {}", ms_from_start);
         }
         /*
         if self.movie is not None:
@@ -133,10 +133,21 @@ std::nullopt_t GameScreen::global_keys() {
         //return self.on_screen_end('SONG_SELECT')
     }
 
-    //if ray.is_key_pressed(global_data.config["keys"]["pause_key"]):
-        //self.pause_song()
+    if (ray::IsKeyPressed(global_data.config->keys.pause_key)) {
+        //pause_song();
+    }
 
     return std::nullopt;
+}
+
+void GameScreen::update_background(double current_time) {
+    //if self.movie is not None:
+        //self.movie.update()
+    //else:
+        //if len(self.player_1.current_bars) > 0:
+            //self.bpm = self.player_1.bpm
+        if (background.has_value()) background->update(current_time);
+            //self.background.update(current_time, self.bpm, self.player_1.gauge, None)
 }
 
 std::optional<std::string> GameScreen::update() {
@@ -151,10 +162,10 @@ std::optional<std::string> GameScreen::update() {
     start_song(current_ms);
         //else:
         //self.start_ms = current_time - self.parser.metadata.offset*1000
-    //self.update_background(current_time)
+    update_background(current_time);
 
     if (player_1.has_value()) {
-        player_1->update(current_ms, current_time);//, background)
+        player_1->update(current_ms, current_time, background);
     }
     /*
     self.song_info.update(current_time)
@@ -194,12 +205,13 @@ void GameScreen::draw_overlay() {
 }
 
 void GameScreen::draw() {
-    /*if self.movie is not None:
-        self.movie.draw()
-    elif self.background is not None:
-    self.background.draw()*/
+    //if self.movie is not None:
+        //self.movie.draw()
+    //elif self.background is not None:
+    if (background.has_value()) background->draw_back();
     if (player_1.has_value()) {
         player_1->draw(current_ms, mask_shader);
     }
+    if (background.has_value()) background->draw_fore();
     draw_overlay();
 }

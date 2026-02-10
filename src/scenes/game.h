@@ -22,6 +22,7 @@ private:
     //int audio_time;
     //int last_resync;
     //std::optional<VideoPlayer> movie;
+    std::optional<Background> background;
     std::optional<std::string> song_music;
     std::optional<TJAParser> parser;
     std::string scene_preset;
@@ -49,6 +50,8 @@ public:
     void start_song(double ms_from_start);
 
     std::nullopt_t global_keys();
+
+    void update_background(double current_time);
 
     std::optional<std::string> update() override;
 
